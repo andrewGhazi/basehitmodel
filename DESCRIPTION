@@ -1,0 +1,18 @@
+Package: bhm
+Type: Package
+Title: Runs the basehit ZINB model
+Version: 0.1.0
+Author: Andrew Ghazi
+Maintainer: Andrew Ghazi <aghazi@broadinstitute.org>
+Description: Runs a ZINB regression model on BASEHIT data with per-sample zero inflation
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Imports: 
+    dplyr,
+    data.table,
+    magrittr,
+    openxlsx,
+    tibble,
+    tidyr,
+    cmdstanr
