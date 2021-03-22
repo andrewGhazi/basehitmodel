@@ -4,6 +4,7 @@
 #' @param out_dir path to output, must end with a slash
 #' @param out_name what you'd like the summary xlsx file to be called
 #' @param model_path path to the stan model file to use
+#' @param vb_threads The number of threads to use for the vb fit
 #' @details The count file should have the first row specifying proteins, the second specifying
 #'   barcodes, and all others after that specifying the output counts for each strain counts for
 #'   each barcode (i.e. wide format, strain x barcode)
@@ -13,7 +14,8 @@
 run_model = function(count_path,
                      out_dir = 'outputs/bh_out/',
                      out_name = 'results.xlsx',
-                     model_path = 'src/stan_files/basehit_reduce_redundancy_rs_nonsquare.stan') {
+                     model_path = 'src/stan_files/basehit_reduce_redundancy_rs_nonsquare.stan',
+                     vb_threads = 4) {
 
   if (dir.exists(out_dir)){
     stop("Please provide an output directory that doesn't already exist.")
@@ -34,15 +36,18 @@ run_model = function(count_path,
     left_join(bh_header, by = 'barcode') %>%
     .[order(sample, protein)]
 
+
   bh_output = bh_data[!grepl('Beads|Pre', sample)][, ps := paste(sample, protein, sep = ':')][]
   bh_pre = bh_data[grepl('Pre', sample)][, ps := paste(sample, protein, sep = ':')][]
   bh_beads = bh_data[grepl('beads', tolower(sample))][, ps := paste(sample, protein, sep = ':')][]
 
-  mean(bh_output$count == 0) # 89.6%
+  # mean(bh_output$count == 0) # 89.6%
 
+  # WR = "well-represented"
   bh_wr_input = bh_pre[count>4] %>%
     rename(pre_count = count)
 
+  # n_nz = "number non-zero"
   bh_n_nz = bh_output[barcode %in% bh_wr_input$barcode] %>%
     .[, .(n_nz = sum(count != 0),
           ps = paste(sample, protein, sep = ':')), by = .(sample, protein)]
@@ -63,13 +68,13 @@ run_model = function(count_path,
     .[,`:=`(eta_i = as.integer(factor(paste(pre_count, sample, protein, sep = ':'))))] %>%
     .[]
 
+  # These are the unique levels of eta in the negative binomial regression. We pass them to the stan
+  # model so that each only has tobe computed once as a way to reduce redundancy in the computation.
   bh_eta = bh_input[,.(pre_count, sample, sd, protein, p_i, s_i, ps_i, eta_i)] %>%
     unique %>%
     .[]
 
   #### Fit the model ----
-
-  library(cmdstanr)
   mod = cmdstan_model(model_path, cpp_options = list(stan_threads = TRUE))
 
   data_list = list(n_prot = nlevels(bh_input$protein),
@@ -87,7 +92,6 @@ run_model = function(count_path,
 
   refresh_freq = 1
 
-  vb_threads = 20
   # out_dir = paste0(getwd(), '/outputs/bh_out')
   if (!dir.exists(out_dir)) dir.create(out_dir)
 
