@@ -15,4 +15,6 @@ Imports:
     openxlsx,
     tibble,
     tidyr,
-    cmdstanr
+    cmdstanr,
+    readxl
+RoxygenNote: 7.1.1

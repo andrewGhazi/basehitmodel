@@ -1,14 +1,19 @@
-library(tidyverse)
-library(openxlsx)
-library(data.table)
-library(magrittr)
-library(readxl)
-
-
 #' Run the basehit model
 #'
+#' @param count_path The path to a Mapped_bcs.csv file
 #' @param out_dir path to output, must end with a slash
-run_model = function(count_path, out_dir = 'outputs/bh_out/', out_name = 'results.xlsx', model_path = 'src/stan_files/basehit_reduce_redundancy_rs_nonsquare.stan') {
+#' @param out_name what you'd like the summary xlsx file to be called
+#' @param model_path path to the stan model file to use
+#' @details The count file should have the first row specifying proteins, the second specifying
+#'   barcodes, and all others after that specifying the output counts for each strain counts for
+#'   each barcode (i.e. wide format, strain x barcode)
+#'
+#'   Changing the stan model will almost certainly break things if it has a different
+#'   parameterization as the default.
+run_model = function(count_path,
+                     out_dir = 'outputs/bh_out/',
+                     out_name = 'results.xlsx',
+                     model_path = 'src/stan_files/basehit_reduce_redundancy_rs_nonsquare.stan') {
 
   if (dir.exists(out_dir)){
     stop("Please provide an output directory that doesn't already exist.")
@@ -217,7 +222,5 @@ run_model = function(count_path, out_dir = 'outputs/bh_out/', out_name = 'result
                                 'concordance_fraction' = ordered_concord_p),
                        file = paste0(out_dir, out_name))
 
-  return(NULL)
-
-
+  return(bh_summary)
 }
