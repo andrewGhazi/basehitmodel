@@ -1,3 +1,10 @@
+
+p_type_s = function(x){
+  est_sign = sign(mean(x))
+
+  1 - mean(sign(x) == est_sign)
+}
+
 #' Run the basehit model
 #'
 #' @param count_path The path to a Mapped_bcs.csv file
@@ -11,6 +18,7 @@
 #'
 #'   Changing the stan model will almost certainly break things if it has a different
 #'   parameterization as the default.
+#' @export
 run_model = function(count_path,
                      out_dir = 'outputs/bh_out/',
                      out_name = 'results.xlsx',
@@ -19,7 +27,12 @@ run_model = function(count_path,
 
   if (dir.exists(out_dir)){
     stop("Please provide an output directory that doesn't already exist.")
+  } else {
+    message(paste0("Creating output directory: ", out_dir))
+    if (!dir.exists(out_dir)) dir.create(out_dir)
   }
+
+  message("Importing data...")
   bh_header = fread(count_path,
                     header = FALSE,
                     nrows = 2) %>%
@@ -27,13 +40,15 @@ run_model = function(count_path,
     .[-1,] %>%
     set_colnames(c('protein', 'barcode'))
 
+  bcs_per_protein = bh_header[,.(n_bc = .N), by = protein]
+
   bh_data = fread(count_path,
                   skip = 1) %>%
-    rename(sample = Barcode) %>%
+    dplyr::rename(sample = Barcode) %>%
     melt(id.vars = c('sample'),
          variable.name = 'barcode',
          value.name = 'count') %>%
-    left_join(bh_header, by = 'barcode') %>%
+    dplyr::left_join(bh_header, by = 'barcode') %>%
     .[order(sample, protein)]
 
 
@@ -41,18 +56,27 @@ run_model = function(count_path,
   bh_pre = bh_data[grepl('Pre', sample)][, ps := paste(sample, protein, sep = ':')][]
   bh_beads = bh_data[grepl('beads', tolower(sample))][, ps := paste(sample, protein, sep = ':')][]
 
-  # mean(bh_output$count == 0) # 89.6%
-
+  n_nz_by_protein = bh_pre[, .(n_nz = sum(count != 0)),by = 'protein']
   # WR = "well-represented"
-  bh_wr_input = bh_pre[count>4] %>%
-    rename(pre_count = count)
+  bh_wr_input = bh_pre %>%
+    .[count > 4] %>%
+    dplyr::rename(pre_count = count)
+
+  # V This gives a lower bar for proteins with a small number of barcodes
+  # bh_wr_input = bcs_per_protein[bh_pre, on = 'protein'] %>%
+  #   .[, frac_nz := sum(count != 0) / .N, by = 'protein'] %>%
+  #   .[count > 4 || frac_nz > .5] %>%
+  #   dplyr::rename(pre_count = count) %>%
+  #   .[,-("frac_nz")]
 
   # n_nz = "number non-zero"
   bh_n_nz = bh_output[barcode %in% bh_wr_input$barcode] %>%
     .[, .(n_nz = sum(count != 0),
-          ps = paste(sample, protein, sep = ':')), by = .(sample, protein)]
+          p_nz = mean(count != 0),
+          ps = paste(sample, protein, sep = ':')),
+      by = .(sample, protein)]
 
-  bh_wr = bh_n_nz[n_nz >= 3] # well represented
+  bh_wr = bh_n_nz[n_nz >= 3 | p_nz > .5] # well represented
   bh_wr_output = bh_output[ps %in% bh_wr$ps & (barcode %in% bh_wr_input$barcode)]
 
   bh_input = bh_wr_input[,.(barcode, pre_count)] %>%
@@ -75,7 +99,8 @@ run_model = function(count_path,
     .[]
 
   #### Fit the model ----
-  mod = cmdstan_model(model_path, cpp_options = list(stan_threads = TRUE))
+  message("Fitting the model...")
+  mod = cmdstanr::cmdstan_model(model_path, cpp_options = list(stan_threads = TRUE))
 
   data_list = list(n_prot = nlevels(bh_input$protein),
                    n_strain = nlevels(bh_input$sample),
@@ -93,7 +118,6 @@ run_model = function(count_path,
   refresh_freq = 1
 
   # out_dir = paste0(getwd(), '/outputs/bh_out')
-  if (!dir.exists(out_dir)) dir.create(out_dir)
 
   bh_fit = mod$variational(data = data_list,
                            seed = 123,
@@ -105,34 +129,39 @@ run_model = function(count_path,
 
   bh_fit$save_object(paste0(out_dir, '/bh_fit.RDS'))
 
-  bh_summary = bh_fit$summary('mean' = mean, 'se' = posterior::mcse_mean, 'med' = median, 'qs' = ~quantile(.x, probs = c(.0025, .005, .025, .05, .1, .25,
-                                                                                                                         .75, .9, .95, .975, .995, .9975)), 'conv' = posterior::default_convergence_measures())
+  bh_summary = bh_fit$summary('mean' = mean,
+                              'se' = posterior::mcse_mean,
+                              'med' = median,
+                              'qs' = ~quantile(.x, probs = c(.0025, .005, .025, .05, .1, .25,
+                                                             .75, .9, .95, .975, .995, .9975)),
+                              'conv' = posterior::default_convergence_measures(),
+                              'p_type_s' = p_type_s)
 
   save(bh_summary,
        file = paste0(out_dir, '/bh_summary.RData'))
 
   #### compute intervals + concordance ----
-
+  message("Computing summaries")
   i_to_ps = bh_eta[,.(ps_i, sample, protein)] %>%
     unique %>%
-    mutate(ps_i = as.character(ps_i))
+    dplyr::mutate(ps_i = as.character(ps_i))
 
   bh_groups = bh_input[,.(sample)] %>%
     unique %>%
-    separate(sample,
+    tidyr::separate(sample,
              into = c('group', 'replicate'),
              sep = '-(?=[AB]$)',
              remove = FALSE)
 
   summary_df = bh_summary %>%
-    filter(grepl('strain', variable)) %>%
-    mutate(ps_i = str_extract(variable, '[0-9]+')) %>%
-    left_join(i_to_ps, by = 'ps_i') %>%
-    left_join(bh_groups %>% select(sample, group),
+    dplyr::filter(grepl('strain', variable)) %>%
+    dplyr::mutate(ps_i = str_extract(variable, '[0-9]+')) %>%
+    dplyr::left_join(i_to_ps, by = 'ps_i') %>%
+    dplyr::left_join(bh_groups %>% dplyr::select(sample, group),
               by = 'sample') %>%
-    select(group,  sample, protein, everything()) %>%
-    filter(!is.na(group)) %>% #some samples not in the metadata :/
-    arrange(group, protein, sample)
+    dplyr::select(group,  sample, protein, everything()) %>%
+    dplyr::filter(!is.na(group)) %>% #some samples not in the metadata :/
+    dplyr::arrange(group, protein, sample)
 
   check_hit = function(quantiles, levels, level = "95%"){
 
@@ -146,9 +175,9 @@ run_model = function(count_path,
   }
 
   hit_checks = summary_df %>%
-    select(group, sample, protein, mean, `0.25%`:`99.75%`) %>%
+    dplyr::select(group, sample, protein, mean, `0.25%`:`99.75%`) %>%
     pivot_longer(`0.25%`:`99.75%`, names_to = 'quantile_level', values_to = 'quantile') %>%
-    arrange(group, sample, protein) %>%
+    dplyr::arrange(group, sample, protein) %>%
     as.data.table %>%
     .[,.(`50%_hit` = check_hit(quantile,quantile_level, "50%"),
          `80%_hit` = check_hit(quantile,quantile_level, "80%"),
@@ -176,45 +205,45 @@ run_model = function(count_path,
               n_agree_hit = sum(is_hit),
               p_agree_hit = mean(is_hit)) %>%
     ungroup %>%
-    arrange(-n_agree_hit)
+    dplyr::arrange(-n_agree_hit)
 
-  concord_wide = concord %>% select(-p_agree_hit) %>%
+  concord_wide = concord %>% dplyr::select(-p_agree_hit) %>%
     pivot_wider(names_from = 'level',
                 values_from = 'n_agree_hit') %>%
-    arrange(-`99.5%_hit`)
+    dplyr::arrange(-`99.5%_hit`)
 
-  concord_p = concord %>% select(-n_agree_hit) %>%
+  concord_p = concord %>% dplyr::select(-n_agree_hit) %>%
     pivot_wider(names_from = 'level',
                 values_from = 'p_agree_hit')
 
   ordered_concord_p = concord_wide %>%
-    select(1:2) %>%
-    left_join(concord_p, by = c('group', 'protein'))
+    dplyr::select(1:2) %>%
+    dplyr::left_join(concord_p, by = c('group', 'protein'))
 
   zf = bh_summary %>%
-    filter(grepl('theta', variable)) %>%
-    mutate(s_i = str_extract(variable, '[0-9]+')) %>%
-    left_join(unique(bh_eta[,.(sample, s_i = as.character(s_i))]), by = 's_i') %>%
-    select(sample, everything()) %>%
-    select(-variable)
+    dplyr::filter(grepl('theta', variable)) %>%
+    dplyr::mutate(s_i = str_extract(variable, '[0-9]+')) %>%
+    dplyr::left_join(unique(bh_eta[,.(sample, s_i = as.character(s_i))]), by = 's_i') %>%
+    dplyr::select(sample, everything()) %>%
+    dplyr::select(-variable)
 
   ixns =  bh_summary %>%
-    filter(grepl('prot_strain', variable)) %>%
-    mutate(ps_i = str_extract(variable, '[0-9]+')) %>%
-    left_join(unique(bh_eta[,.(protein, sample, ps_i = as.character(ps_i))]), by = 'ps_i') %>%
-    select(protein, sample, everything()) %>%
-    select(-variable, -ps_i) %>%
-    arrange(protein, sample)
+    dplyr::filter(grepl('prot_strain', variable)) %>%
+    dplyr::mutate(ps_i = str_extract(variable, '[0-9]+')) %>%
+    dplyr::left_join(unique(bh_eta[,.(protein, sample, ps_i = as.character(ps_i))]), by = 'ps_i') %>%
+    dplyr::select(protein, sample, everything()) %>%
+    dplyr::select(-variable, -ps_i) %>%
+    dplyr::arrange(protein, sample)
 
   prots = bh_summary %>%
-    filter(grepl('protein', variable)) %>%
-    mutate(p_i = str_extract(variable, '[0-9]+')) %>%
-    left_join(unique(bh_eta[,.(protein, p_i = as.character(p_i))]), by = 'p_i') %>%
-    select(protein, everything()) %>%
-    select(-variable)
+    dplyr::filter(grepl('protein', variable)) %>%
+    dplyr::mutate(p_i = str_extract(variable, '[0-9]+')) %>%
+    dplyr::left_join(unique(bh_eta[,.(protein, p_i = as.character(p_i))]), by = 'p_i') %>%
+    dplyr::select(protein, everything()) %>%
+    dplyr::select(-variable)
 
   op = bh_summary %>%
-    filter(!grepl('protein|strain|theta', variable))
+    dplyr::filter(!grepl('protein|strain|theta', variable))
 
   openxlsx::write.xlsx(x = list('ixn_estimates' = ixns,
                                 'protein_estimates' = prots,
