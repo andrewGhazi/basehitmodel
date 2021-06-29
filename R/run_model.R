@@ -62,13 +62,7 @@ run_model = function(count_path,
     .[count > 4] %>%
     dplyr::rename(pre_count = count)
 
-  # V This gives a lower bar for proteins with a small number of barcodes
-  # bh_wr_input = bcs_per_protein[bh_pre, on = 'protein'] %>%
-  #   .[, frac_nz := sum(count != 0) / .N, by = 'protein'] %>%
-  #   .[count > 4 || frac_nz > .5] %>%
-  #   dplyr::rename(pre_count = count) %>%
-  #   .[,-("frac_nz")]
-
+  # V This gives a lower bar for proteins with a small number of barcodes than a hard ">3 nz barcodes" threshold"
   # n_nz = "number non-zero"
   bh_n_nz = bh_output[barcode %in% bh_wr_input$barcode] %>%
     .[, .(n_nz = sum(count != 0),
