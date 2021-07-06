@@ -120,7 +120,8 @@ read_multirun = function(count_path,
   count_list = list(pre = bh_pre,
                     wr_pre = bh_wr_input,
                     beads = count_dfs[[1]],
-                    wr_output = count_dfs[[2]])
+                    wr_output = count_dfs[[2]],
+                    prot_to_bc = prot_to_bc)
 
   return(count_list)
 }
@@ -255,9 +256,30 @@ get_entropy = function(values, offset = 0){
   -sum(p[nz]*lp[nz])
 }
 
-identify_bead_binders = function(bh_input,
-                                 drop_multirun_strains = TRUE,
-                                 binding_threshold = 1) {
+identify_bead_binders = function(wr_pre, prot_to_bc,
+                                 bh_beads, bh_output,
+                                 binding_threshold,
+                                 save_bead_binders,
+                                 out_dir) {
+  beads_avg = wr_pre[,.(barcode, pre_count = count, run_id)][bh_beads, on = .(barcode, run_id)][pre_count > 4][,.(mean_bead_count = mean(count / pre_count)), by = barcode]
+
+  adj_output = wr_pre[,.(barcode, pre_count = count, run_id)][bh_output, on = .(barcode, run_id)][pre_count > 4][, pre_adj_count := count / pre_count][, .(mean_prot_output = mean(pre_adj_count)), by = 'protein']
+
+  bead_output_by_prot = bh_header[beads_avg, on = 'barcode'][, .(prot_mean_bead_out = mean(mean_bead_count)), by = 'protein']
+
+
+  high_bead_binding = adj_output[bead_output_by_prot, on = 'protein'][prot_mean_bead_out > binding_threshold]
+
+  if (save_bead_binders){
+    save(high_bead_binding,
+         file = paste0(out_dir, 'high_bead_binding.RData'))
+  }
+
+  return(high_bead_binding)
+}
+
+get_concordance = function(bh_input,
+                           drop_multirun_strains = TRUE) {
 
   s_id = bh_input[,.(sample_id)] %>%
     unique %>%
@@ -279,8 +301,6 @@ identify_bead_binders = function(bh_input,
     .[,.(sum_adj = sum(adj_count)), by = .(protein, strain, repl)] %>%
     .[,.(concordance = get_entropy(sum_adj)), by = .(protein, strain)]
 
-  concordance_scores$high_bead_binder = concordance_scores$concordance > binding_threshold
-
   return(concordance_scores)
 }
 
@@ -294,6 +314,7 @@ read_split = function(i, split_data_dir) {
 #' @param p1_eta the subset of bh_eta for the protein in question,
 #' @param stan_model
 fit_one_protein = function(protein,
+                           protein_model,
                            split_data_dir,
                            save_fits,
                            prots,
@@ -359,6 +380,8 @@ fit_one_protein = function(protein,
   return(protein_summary)
 }
 
+fit_safely = purrr::safely(fit_one_protein)
+
 fit_models = function (algorithm = algorithm,
                        split_data_dir = split_data_dir,
                        save_fits = save_fits,
@@ -371,7 +394,8 @@ fit_models = function (algorithm = algorithm,
   prots = unique(bh_input$protein)
 
   summaries = furrr::future_map(.x = prots,
-                                .f = fit_one_protein,
+                                .f = fit_safely,
+                                protein_model = protein_model,
                                 split_data_dir = split_data_dir,
                                 save_fits = save_fits,
                                 ixn_prior_width = ixn_prior_width,
@@ -387,10 +411,94 @@ fit_models = function (algorithm = algorithm,
   return(res)
 }
 
+#' Write out fit summary files with notes on bead binding
+write_summary = function(fit_summaries, bead_binders, concordance_scores,
+                         weak_score_threshold = .5,
+                         strong_score_threshold = 1,
+                         # weak_interval = .95, # TODO make these adjustable. Will require going back to the part that computes the stan fit summaries.
+                         # strong_interval = .99,
+                         weak_concordance = .75,
+                         strong_concordance = .95,
+                         verbose = TRUE) {
+
+  worked = fit_summaries %>%
+    dplyr::filter(purrr::map_lgl(summary, ~is.null(.x$error))) %>%
+    dplyr::mutate(i = 1:n()) %>%
+    as.data.table
+
+  if (verbose) message(paste0(nrow(worked), ' out of ', nrow(fit_summaries),
+                              " (", round(100*nrow(worked)/nrow(fit_summaries), digits = 2), '%) protein fits ran without error.'))
+
+  parameters = worked %>%
+    tidyr::unnest_legacy(summary)
+
+  ixn_scores = worked[grepl('prot_str', variable)]
+  other_params = worked[!grepl('prot_str', variable)]
+
+  with_concord = concordance_scores[ixn_scores, on = .(protein, strain)]
+
+  with_concord$note = c('', "This protein showed normalized bead output above the specified bead binding enrichment threshold (default 1)")[(with_concord$protein %in% high_bead_binding) + 1]
+
+  with_concord = with_concord %>%
+    mutate(strong_hit = (ixn_score > strong_score_threshold) & !(`0.5%` < 0 & `99.5%` > 0) & (concordance > strong_concordance),
+           weak_hit = (ixn_score > weak_score_threshold) & !(`2.5%` < 0 & `97.5%` > 0) & (concordance > weak_concordance)) %>%
+    dplyr::rename("ixn_score" = "mean") %>%
+    dplyr::arrange(desc(abs(ixn_score))) %>%
+    dplyr::select(protein, strain, ixn_score, strong_hit, weak_hit, concordance, p_type_s, `0.25%`:`99.75%`, note)
+
+  if (verbose & nrow(with_concord) > 1048576) {
+    message("More scores than Excel can handle. Only writing out the first 10,000. The full results will also be written to a tsv")
+    openxlsx::write.xlsx(x = list('ixn_estimates' = with_concord[1:1e4],
+                                  'other_parameters' = other_params),
+                         file = paste0(out_dir, 'ixn_scores.xlsx'))
+
+    data.table::fwrite(with_concord,
+                       file = paste0(out_dir, "ixn_scores.tsv"),
+                       sep = '\t')
+    data.table::fwrite(with_concord,
+                       file = paste0(out_dir, "other_parameters.tsv"),
+                       sep = '\t')
+
+  } else {
+    openxlsx::write.xlsx(x = list('ixn_estimates' = with_concord,
+                                  'other_parameters' = other_params),
+                         file = paste0(out_dir, 'ixn_scores.xlsx'))
+    data.table::fwrite(with_concord,
+                       file = paste0(out_dir, "ixn_scores.tsv"),
+                       sep = '\t')
+    data.table::fwrite(with_concord,
+                       file = paste0(out_dir, "other_parameters.tsv"),
+                       sep = '\t')
+  }
+
+
+}
+
+check_out_dir = function(out_dir) {
+
+  if (!grepl('\\/$', out_dir)) {
+    out_dir = paste0(out_dir, '/')
+  }
+
+  if (!is.null(out_dir) & !dir.exists(out_dir)) {
+    if (dir.exists(out_dir)){
+      stop('output directory already exists')
+    } else {
+      #TODO add a check for cache_dir
+      dir.create(out_dir)
+      split_data_dir = file.path(gsub('\\/$', '', out_dir ), 'splits')
+      dir.create(split_data_dir)
+    }
+  }
+
+  return(out_dir)
+}
+
 #' Run the basehit model one protein at a time
 #'
 #' @inheritParams run_model
 #' @param num_threads
+#' @param bead_binding_threshold proteins with enrichment in the beads above this threshold get noted in the output
 #' @details The count file should have the first row specifying proteins, the
 #'   second specifying barcodes, and all others after that specifying the output
 #'   counts for each strain counts for each barcode (i.e. wide format, strain x
@@ -409,29 +517,35 @@ model_proteins_separately = function(count_path,
                                      algorithm = 'variational',
                                      save_split = TRUE,
                                      save_fits = FALSE,
+                                     bead_binding_threshold = 1,
+                                     save_bead_binders = TRUE,
+                                     min_n_nz = 3,
+                                     min_frac_nz = .5,
+
                                      seed = 1234) {
 
-  if (!is.null(out_dir) & !dir.exists(out_dir)) {
-    if (dir.exists(out_dir)){
-      stop('output directory already exists')
-    }
+  out_dir = check_out_dir(out_dir)
 
-    #TODO add a check for cache_dir
-    dir.create(out_dir)
-    split_data_dir = file.path(gsub('\\/$', '', out_dir ), 'splits')
-    dir.create(split_data_dir)
-  }
-
-  count_list = read_multirun(count_path) # a list of four count dataframes: pre, WR pre, beads, and WR output
+  count_list = read_multirun(count_path) # a list of four count dataframes: pre, WR pre, beads, and WR output. Also the prot_to_bc header lines
 
   filtered_data = filter_multirun(count_list,
                                   cache_dir = cache_dir,
+                                  min_n_nz = min_n_nz,
+                                  min_frac_nz = min_frac_nz,
                                   save_outputs = TRUE)
 
   write_splits(filtered_data,
                split_data_dir)
 
-  bb = identify_bead_binders(filtered_outputs) # some proteins bind the beads strongly
+  bead_binding = identify_bead_binders(count_list$wr_pre, count_list$prot_to_bc,
+                                       count_list$beads, count_list$wr_output,
+                                       filtered_outputs,
+                                       binding_threshold = bead_binding_threshold,
+                                       save_bead_binders = save_bead_binders,
+                                       out_dir = out_dir)
+
+  concordance = get_concordance(filtered_data$bh_input,
+                                drop_multirun_strains = TRUE)
 
   model_fits = fit_models(algorithm = algorithm,
                           split_data_dir = split_data_dir,
@@ -441,7 +555,10 @@ model_proteins_separately = function(count_path,
                           out_dir = out_dir,
                           seed = seed)
 
-  write_summary(bb, model_fits)
+  save(model_fits, bead_binding, concordance,
+       file = paste0(out_dir, 'all_outputs.RData'))
+
+  write_summary(model_fits, bead_binding, concordance)
 
   if (!save_splits) {
     unlink(split_data_dir)
