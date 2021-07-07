@@ -17,5 +17,6 @@ Imports:
     tidyr,
     cmdstanr,
     readxl,
-    furrr
+    furrr,
+    stringr
 RoxygenNote: 7.1.1
