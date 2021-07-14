@@ -111,12 +111,12 @@ read_multirun = function(count_path,
 
   if (verbose) {
     frac_wr = bh_pre[, .(frac_wr = round(mean(count > count_threshold), digits = 3)), by = run_id]
-    message("Fraction of barcodes well-represented in Pre sample by run: ")
+    message("* Fraction of barcodes well-represented in Pre sample by run: ")
     message(paste0(capture.output(frac_wr), collapse = '\n'))
   }
 
   bh_wr_input = bh_pre[count > count_threshold, # this drops poorly represented barcodes
-                       .(barcode, run_id, pre_count = count)]
+                       .(barcode, run_id, pre_count = count)][, wr_bc_runs := paste(barcode, run_id, sep = '_')]
 
   if (verbose) message("* Reading output counts... ")
   count_dfs = purrr::map(count_files, read_outputs_one,
@@ -205,7 +205,7 @@ filter_multirun = function(count_list,
 
   bc_input_by_run = bh_pre[, bc_run := paste(barcode, run_id, sep = '_')][bc_run %in% bh_wr_input$wr_bc_runs] %>%
     .[,.(barcode, run_id, count)] %>%
-    dplyr::rename(pre_count = count)
+    dplyr::rename("pre_count" = "count")
 
   io_by_run = bc_input_by_run[bh_wr_output, on = .(barcode, run_id)]
 
@@ -263,10 +263,12 @@ write_splits = function(filtered_data,
   proteins = unique(bh_input$protein)
   n_write = length(proteins)
 
-  existing_splits = list.files(split_data_dir)
-  files_to_write = paste0(1:n_write, ".csv.gz")
+  existing_splits = list.files(split_data_dir,
+                               pattern = ".csv.gz")
+  files_to_write = c(paste0(1:n_write, ".csv.gz"),
+                     paste0(1:n_write, "_eta.csv.gz"))
   if (all(files_to_write %in% existing_splits)) {
-    message("* existing splits already exist. ")
+    message("* Split data already in place.")
     return(invisible())
   }
   for (i in 1:n_write){
@@ -300,7 +302,7 @@ identify_bead_binders = function(wr_pre, prot_to_bc,
 
   high_bead_binding = adj_output[bead_output_by_prot, on = 'protein'][prot_mean_bead_out > binding_threshold]
 
-  if (verbose) message(paste0("* Identified ", nrow(high_bead_binding), " proteins"))
+  if (verbose) message(paste0("* Identified ", nrow(high_bead_binding), " proteins with high output counts in bead samples..."))
 
   if (save_bead_binders){
     if (verbose) message(paste0("* Saving high bead binding protein data frame to: ", paste0(out_dir, 'high_bead_binding.RData')))
@@ -348,8 +350,7 @@ read_split = function(i, split_data_dir) {
 #' @param p1_eta the subset of bh_eta for the protein in question,
 #' @param stan_model protein model to use
 fit_one_protein = function(protein,
-                           model_path,
-                           bh_input,
+                           # bh_input,
                            # protein_model,
                            split_data_dir,
                            save_fits,
@@ -359,21 +360,50 @@ fit_one_protein = function(protein,
                            out_dir) {
 
   i = which(proteins == protein)
-
-  protein_model = cmdstan_model(stan_file = model_path)
+  model_path = system.file("stan", "single_protein_by_ixn_width.stan",
+                           package = 'bhm',
+                           mustWork = TRUE)
+  protein_model = cmdstan_model(stan_file = model_path, quiet = TRUE)
 
   split_data = read_split(i, split_data_dir)
 
   p1 = split_data$p1
   p1_eta = split_data$p1_eta
 
-  if (proteins[i] != protein | proteins[i] != bh_input$protein[1]) {
-    stop("Protein indexing error")
-  }
+  eta_map = p1_eta[,.(eta_i,
+                      new_i = 1:nrow(p1_eta))]
 
-  data_list = list(n_strain = nlevels(p1$strain),
-                   n_bc = n_distinct(p1$barcode),
-                   n_ps = nlevels(p1$strain), # because we're only looking at one protein
+  p1 = eta_map[p1, on = 'eta_i'] %>%
+    select(-eta_i) %>%
+    dplyr::rename(eta_i = new_i)
+
+  p1_eta = eta_map[p1_eta, on = 'eta_i'] %>%
+    select(-eta_i) %>%
+    dplyr::rename(eta_i = new_i)
+
+  p1[, ps := factor(paste(protein, strain, sep = ':'))]
+
+  p1_eta[, ps := factor(paste(protein, strain, sep = ':'),
+                        levels = levels(p1$ps))]
+  p1_eta$eta_i = 1:nrow(p1_eta)
+
+  p1$strain = factor(p1$strain)
+  p1$s_i = as.numeric(p1$strain)
+
+  p1_eta$strain = factor(p1_eta$strain,
+                         levels = levels(p1$strain))
+  p1_eta$s_i = as.numeric(p1_eta$strain)
+
+  p1_eta$ps = droplevels(p1_eta$ps)
+  p1_eta$ps_i = as.numeric(p1_eta$ps)
+
+  # if (proteins[i] != protein | proteins[i] != bh_input$protein[1]) {
+  #   stop("Protein indexing error")
+  # }
+
+  data_list = list(n_strain = dplyr::n_distinct(p1$strain),
+                   n_bc = dplyr::n_distinct(p1$barcode),
+                   n_ps = dplyr::n_distinct(p1$strain), # because we're only looking at one protein
                    N = nrow(p1),
                    strain_i = p1$s_i,
                    n_eta = nrow(p1_eta),
@@ -405,12 +435,17 @@ fit_one_protein = function(protein,
                                                                        .75, .9, .95, .975, .995, .9975)),
                                         'conv' = posterior::default_convergence_measures(),
                                         'p_type_s' = p_type_s)
-  protein_summary$protein = prot_name
 
+  protein_summary$protein = protein
   protein_summary = data.table::as.data.table(protein_summary)
+  protein_summary[, s_i := as.numeric(stringr::str_extract(variable, '[0-9]+'))]
 
-  save(protein_summary, p1_eta,
-       file = paste0(out_dir, paste0(prot_name, '.RData')))
+  strain_i_df =  unique(p1[,.(strain, s_i)])
+
+  protein_summary = strain_i_df[protein_summary, on = 's_i']
+
+  # save(protein_summary, p1_eta,
+  #      file = paste0(out_dir, paste0(prot_name, '.RData')))
 
   rm(protein_fit)
   gc()
@@ -430,8 +465,10 @@ fit_models = function (algorithm = algorithm,
                        out_dir,
                        seed) {
 
-  model_path2 = model_path
-  protein_model = cmdstan_model(stan_file = model_path2)
+  model_path = system.file("stan", "single_protein_by_ixn_width.stan",
+                           package = 'bhm',
+                           mustWork = TRUE)
+  protein_model = cmdstan_model(stan_file = model_path, quiet = TRUE)
   # compile it once at first so the first iterations of the future_map don't try to all compile it together
 
   summaries = furrr::future_map(.x = proteins,
@@ -440,7 +477,7 @@ fit_models = function (algorithm = algorithm,
                                 split_data_dir = split_data_dir,
                                 save_fits = save_fits,
                                 ixn_prior_width = ixn_prior_width,
-                                bh_input = bh_input,
+                                # bh_input = bh_input,
                                 proteins = proteins,
                                 algorithm = algorithm,
                                 out_dir = out_dir,
@@ -461,6 +498,7 @@ write_summary = function(fit_summaries, bead_binders, concordance_scores,
                          # strong_interval = .99,
                          weak_concordance = .75,
                          strong_concordance = .95,
+                         out_dir,
                          verbose = TRUE) {
 
   worked = fit_summaries %>%
@@ -468,36 +506,43 @@ write_summary = function(fit_summaries, bead_binders, concordance_scores,
     dplyr::mutate(i = 1:n()) %>%
     as.data.table
 
-  if (verbose) message(paste0(nrow(worked), ' out of ', nrow(fit_summaries),
+  errored = fit_summaries %>%
+    dplyr::filter(purrr::map_lgl(summary, ~!is.null(.x$error)))
+
+  if (verbose) message(paste0("* ", nrow(worked), ' out of ', nrow(fit_summaries),
                               " (", round(100*nrow(worked)/nrow(fit_summaries), digits = 2), '%) protein fits ran without error.'))
 
   parameters = worked %>%
-    tidyr::unnest_legacy(summary)
+    dplyr::mutate(res = purrr::map(summary, 1)) %>%
+    dplyr::select(-summary, -protein) %>%
+    tidyr::unnest_legacy(res) %>%
+    dplyr::select(-i, -s_i)
 
-  ixn_scores = worked[grepl('prot_str', variable)]
-  other_params = worked[!grepl('prot_str', variable)]
+  ixn_scores =   parameters[grepl('prot_str', variable)] %>%
+    dplyr::select(protein, strain, ixn_score = mean, se, p_type_s, `0.25%`:`99.75%`) %>%
+    dplyr::arrange(desc(ixn_score))
+
+  other_params = parameters[!grepl('prot_str', variable)] %>%
+    dplyr::select(protein, strain, variable, posterior_mean = mean, se, p_type_s, `0.25%`:`99.75%`)
 
   with_concord = concordance_scores[ixn_scores, on = .(protein, strain)]
 
-  with_concord$note = c('', "This protein showed normalized bead output above the specified bead binding enrichment threshold (default 1)")[(with_concord$protein %in% high_bead_binding) + 1]
+  with_concord$note = c('', "This protein showed normalized bead output above the specified bead binding enrichment threshold (default 1)")[(with_concord$protein %in% bead_binders$protein) + 1]
 
   with_concord = with_concord %>%
     mutate(strong_hit = (ixn_score > strong_score_threshold) & !(`0.5%` < 0 & `99.5%` > 0) & (concordance > strong_concordance),
            weak_hit = (ixn_score > weak_score_threshold) & !(`2.5%` < 0 & `97.5%` > 0) & (concordance > weak_concordance)) %>%
-    dplyr::rename("ixn_score" = "mean") %>%
-    dplyr::arrange(desc(abs(ixn_score))) %>%
     dplyr::select(protein, strain, ixn_score, strong_hit, weak_hit, concordance, p_type_s, `0.25%`:`99.75%`, note)
 
   if (verbose & nrow(with_concord) > 1048576) {
-    message("More scores than Excel can handle. Only writing out the first 10,000. The full results will also be written to a tsv")
-    openxlsx::write.xlsx(x = list('ixn_estimates' = with_concord[1:1e4],
-                                  'other_parameters' = other_params),
+    message("More scores than Excel can handle. Only writing out the first 10,000 to the Excel file. The full results will also be written to a tsv")
+    openxlsx::write.xlsx(x = list('ixn_scores' = with_concord[1:1e4]),
                          file = paste0(out_dir, 'ixn_scores.xlsx'))
 
     data.table::fwrite(with_concord,
                        file = paste0(out_dir, "ixn_scores.tsv"),
                        sep = '\t')
-    data.table::fwrite(with_concord,
+    data.table::fwrite(other_params,
                        file = paste0(out_dir, "other_parameters.tsv"),
                        sep = '\t')
 
@@ -508,12 +553,12 @@ write_summary = function(fit_summaries, bead_binders, concordance_scores,
     data.table::fwrite(with_concord,
                        file = paste0(out_dir, "ixn_scores.tsv"),
                        sep = '\t')
-    data.table::fwrite(with_concord,
+    data.table::fwrite(other_params,
                        file = paste0(out_dir, "other_parameters.tsv"),
                        sep = '\t')
   }
 
-
+  NULL
 }
 
 end_with_slash = function(dir_path){
@@ -533,8 +578,8 @@ check_out_dir = function(out_dir) {
     } else {
       #TODO add a check for cache_dir
       dir.create(out_dir)
-      split_data_dir = file.path(gsub('\\/$', '', out_dir ), 'splits')
-      dir.create(split_data_dir)
+      # split_data_dir = file.path(gsub('\\/$', '', out_dir ), 'splits/')
+      # dir.create(split_data_dir)
     }
   }
 
@@ -569,14 +614,14 @@ model_proteins_separately = function(count_path,
                                      verbose = TRUE,
                                      seed = 1234) {
 
-  if (verbose) message("Checking output directory...")
+  if (verbose) message("Step 1/8 Checking output directory...")
   out_dir = check_out_dir(out_dir)
 
-  if (verbose) message("Reading data...")
+  if (verbose) message("Step 2/8 Reading data...")
   count_list = read_multirun(count_path,
-                             cache_dir = cache_dir) # a list of four count dataframes: pre, WR pre, beads, and WR output. Also the prot_to_bc header lines
+                             cache_dir = cache_dir) # a list of four 5 dataframes: pre, WR pre, beads, and WR output. Also the prot_to_bc header lines
 
-  if (verbose) message("Filtering data...")
+  if (verbose) message("Step 3/8 Filtering data...")
   filtered_data = filter_multirun(count_list,
                                   cache_dir = cache_dir,
                                   min_n_nz = min_n_nz,
@@ -584,19 +629,19 @@ model_proteins_separately = function(count_path,
                                   save_outputs = TRUE,
                                   verbose = verbose)
 
-  if (verbose) message("Writing out data split by protein...")
+  if (verbose) message("Step 4/8 Writing out data split by protein...")
   if (missing(split_data_dir)){
     message("* Using split data directory under cache directory...")
     split_data_dir = paste0(cache_dir, 'splits/')
   }
   if (!dir.exists(split_data_dir)) {
-    message("Split data directory doesn't exist. Creating it...")
+    message("* Split data directory doesn't exist. Creating it...")
     dir.create(split_data_dir)
   }
   write_splits(filtered_data,
                split_data_dir)
 
-  if (verbose) message("Identifying bead binding proteins...")
+  if (verbose) message("Step 5/8 Identifying bead binding proteins...")
   bead_binding = identify_bead_binders(wr_pre = count_list$wr_pre,
                                        prot_to_bc = count_list$prot_to_bc,
                                        bh_beads = count_list$beads,
@@ -606,11 +651,11 @@ model_proteins_separately = function(count_path,
                                        out_dir = out_dir,
                                        verbose = verbose)
 
-  if (verbose) message("Computing concordance scores...")
+  if (verbose) message("Step 6/8 Computing concordance scores...")
   concordance = get_concordance(filtered_data$bh_input,
                                 drop_multirun_strains = TRUE)
 
-  if (verbose) message("Fitting model by protein...")
+  if (verbose) message("Step 7/8 Fitting model by protein...")
   model_fits = fit_models(algorithm = algorithm,
                           split_data_dir = split_data_dir,
                           bh_input = filtered_data$bh_input,
@@ -621,14 +666,14 @@ model_proteins_separately = function(count_path,
                           out_dir = out_dir,
                           seed = seed)
 
-  if (verbose) message("Writing result tables...")
+  if (verbose) message("Step 8/8 Writing result tables...")
   save(model_fits, bead_binding, concordance,
        file = paste0(out_dir, 'all_outputs.RData'))
 
-  write_summary(model_fits, bead_binding, concordance)
+  write_summary(model_fits, bead_binding, concordance, out_dir = out_dir)
 
-  if (verbose) message("")
-  if (!save_splits) {
+  if (!save_split) {
+    if (verbose) message("Removing split data directory...")
     unlink(split_data_dir)
   }
 
