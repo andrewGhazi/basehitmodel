@@ -18,5 +18,6 @@ Imports:
     cmdstanr,
     readxl,
     furrr,
-    stringr
+    stringr,
+    patchwork
 RoxygenNote: 7.1.1
