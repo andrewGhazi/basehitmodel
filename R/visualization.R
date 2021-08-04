@@ -1,113 +1,87 @@
+tick = function(x){
+  paste0("`", x, "`")
+}
+
 #' @title Make a hit calling plot
 #' @description Show both the posterior intervals and placement in the concordance distribution
 #' @return a list of three plots
 hit_calling_plot = function(protein_, strain_,
                             bead_binding,
                             concordances,
-                            model_outputs,
-                            bh_input,
-                            bh_eta,
-                            tags = c("A", 'B"'),
+                            fit_summary, # TODO make it not need redundant arguments. this has the same information as the previous arg
+                            weak_score_threshold = .5,
+                            strong_score_threshold = 1,
+                            weak_concordance = .75,
+                            strong_concordance = .95,
+                            tags = TRUE,
                             intervals = c(.95, .99),
                             algorithm = 'variational',
                             seed = 1234) {
 
-  int_cols = paste0(100 * sort(c((1 - intervals) / 2,
-                    (1 - intervals) / 2 + intervals)), "%")
+  int_cols = c(paste0(100 * sort(c((1 - intervals) / 2,
+                    (1 - intervals) / 2 + intervals)), "%"), "ixn_score")
 
-  interval_df = model_fits[protein == protein_]$summary[[1]]$result[strain == strain_ & grepl('prot_st', variable)][, ..int_cols] %>%
-    melt(variable.name = 'q',
-         value.name = 'interaction_score')
+  ixn_summary = fit_summary[protein == protein_ & strain == strain_]
+  interval_df = ixn_summary[, ..int_cols]
 
+  interval_plot = ggplot(interval_df,
+         aes(x = interaction_score)) +
+    geom_segment(lwd = 1,
+                 color = 'black',
+                 aes_string(x = tick(int_cols[1]),
+                            xend = tick(int_cols[4]),
+                            y = "0",
+                            yend = "0")) +
+    geom_segment(lwd = 3,
+                 color = 'grey55',
+                 aes_string(x = tick(int_cols[2]),
+                            xend = tick(int_cols[3]),
+                            y = "0",
+                            yend = "0")) +
+    geom_point(aes(y = 0,
+                   x = ixn_score)) +
+    geom_vline(xintercept = 0,
+               lty = 2,
+               color = "grey") +
+    theme_light() +
+    theme(axis.ticks.y = element_blank(),
+          axis.text.y = element_blank(),
+          axis.title.y = element_blank()) +
+    labs(x = paste0(protein_, ":", strain_,
+                    " interaction score"))
 
-  p1 = bh_input[protein == protein_]
-  p1_eta = bh_eta[protein == protein_]
-  prot_name = str_replace_all(pattern = '-|[:space:]|/|:', replacement = '_', string = p1$protein[1])
-  eta_map = p1_eta[,.(eta_i,
-                      new_i = 1:nrow(p1_eta))]
+  ixn_summary = fit_summary[protein == protein_ & strain == strain_]
 
-  p1 = eta_map[p1, on = 'eta_i'] %>%
-    select(-eta_i) %>%
-    dplyr::rename(eta_i = new_i)
+  # V These are interactions that would be weak hits by the posterior interval criterion alone
+  entropy_plot = fit_summary[!(fit_summary[,which(names(fit_summary) == int_cols[2]), with = FALSE][[1]] < 0 &
+                                 fit_summary[,which(names(fit_summary) == int_cols[3]), with = FALSE][[1]] > 0)] %>%
+    ggplot(aes(concordance)) +
+    geom_histogram(boundary = 0, bins = 100) +
+    geom_vline(lty = 2,
+               xintercept = c(weak_concordance, strong_concordance)) +
+    geom_vline(color = 'red',
+               xintercept = c(ixn_summary$concordance)) +
+    theme_light() +
+    theme(text = element_text(size = 7),
+          axis.text.y = element_blank(),
+          axis.ticks.y = element_blank()) +
+    labs(y = NULL)
 
-  p1_eta = eta_map[p1_eta, on = 'eta_i'] %>%
-    select(-eta_i) %>%
-    dplyr::rename(eta_i = new_i)
+  layout_str = "
+  12
+  #2"
 
-
-  p1[, ps := factor(paste(protein, strain, sep = ':'))]
-
-  p1_eta[, ps := factor(paste(protein, strain, sep = ':'),
-                        levels = levels(p1$ps))]
-  p1_eta$eta_i = 1:nrow(p1_eta)
-
-  p1$strain = factor(p1$strain)
-
-  p1$s_i = as.numeric(p1$strain)
-
-  p1_eta$strain = factor(p1_eta$strain,
-                         levels = levels(p1$strain))
-  p1_eta$ps = droplevels(p1_eta$ps)
-  p1_eta$s_i = as.numeric(p1_eta$strain)
-  p1_eta$ps_i = as.numeric(p1_eta$ps)
-
-  message("Rerunning sampler...")
-
-  data_list = list(n_strain = nlevels(p1$strain),
-                   n_bc = n_distinct(p1$barcode),
-                   n_ps = nlevels(p1$strain),
-                   N = nrow(p1),
-                   strain_i = p1$s_i,
-                   n_eta = nrow(p1_eta),
-                   eta_ps_i = p1_eta$ps_i,
-                   eta_presum = log(p1_eta$sd) + log(p1_eta$pre_count),
-                   eta_i = p1$eta_i,
-                   count_obs = p1$count)
-
-
-  protein_fit = protein_model$variational(data = data_list,
-                                          seed = 1234,
-                                          output_dir = 'outputs/IFNA17',
-                                          output_samples = 5000)
-  if (algorithm == 'variational') {
-    # TODO expose more of the stan parameters to the user
-    protein_fit = protein_model$variational(data = data_list,
-                                            output_samples = 5000)
+  if (tags) {
+    tl = "A"
   } else {
-    protein_fit = protein_model$sample(data = data_list,
-                                       iter_sampling = 5000)
+    tl = NULL
   }
 
-  protein_summary = protein_fit$summary('mean' = mean,
-                                        'se' = posterior::mcse_mean,
-                                        'med' = median,
-                                        'qs' = ~quantile(.x, probs = sort(c((1 - intervals) / 2,
-                                                                            (1 - intervals) / 2 + intervals))),
-                                        'conv' = posterior::default_convergence_measures(),
-                                        'p_type_s' = p_type_s)
-
-  int_df = as.data.table(protein_summary)[strain == strain_]
-  interval_plot = ggplot(post_samples,
-                         aes(x = ixn_score)) +
-    geom_histogram(aes(y = ..density..)) +
-    geom_vline(xintercept = c(.5, 1),
-               color = 'grey60') +
-    geom_vline(lty = 2,
-               color = 'grey20',
-               xintercept = 0) +
-    geom_segment(data = int_df,
-                 aes(x = x, xend = xend, y = y, yend = yend,
-                     color = colors),
-                 lwd = 1.5, show.legend = FALSE) +
-    labs(y = 'posterior density',
-         x = paste0(protein, ":", strain, " interaction score"),
-         color = NULL) +
-    scale_color_brewer(palette = 'Set1') +
-    expand_limits(x = 0) +
-    theme(text = element_text(size = 7)) +
-    theme_light()
-
-  both_plot = (interval_plot + labs(tag = tags[1])) + (entropy_plot + labs(tag = tags[2]))
+  both_plot = (interval_plot) + (entropy_plot ) +
+    plot_layout(design = layout_str,
+                tag_level = "keep") +
+    plot_annotation(tag_levels = tl) &
+    theme(plot.tag = element_text(size = 12))
 
   print(both_plot)
   plot_list = list(a = interval_plot,
