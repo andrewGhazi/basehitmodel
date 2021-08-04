@@ -161,7 +161,7 @@ filter_multirun = function(count_list,
     }
 
     if (file.exists(paste0(cache_dir, 'model_inputs.RData'))) {
-      message(paste0("Loading cached model inputs from ", cache_dir,
+      message(paste0("* Loading cached model inputs from ", cache_dir,
                      " . Delete those and re-run if that's not what you want to use."))
       load(paste0(cache_dir, 'model_inputs.RData'))
       return(list(bh_input = bh_input, bh_eta = bh_eta))
@@ -416,11 +416,9 @@ fit_one_protein = function(protein,
   if (algorithm == 'variational') {
     # TODO expose more of the stan parameters to the user
     protein_fit = protein_model$variational(data = data_list,
-                                            seed = 1234,
                                             output_samples = 5000)
   } else {
     protein_fit = protein_model$sample(data = data_list,
-                                       seed = 1234,
                                        iter_sampling = 5000)
   }
 
@@ -488,16 +486,13 @@ fit_models = function (algorithm = algorithm,
   return(res)
 }
 
-#' Write out fit summary files with notes on bead binding
-write_summary = function(fit_summaries, bead_binders, concordance_scores,
-                         weak_score_threshold = .5,
-                         strong_score_threshold = 1,
-                         # weak_interval = .95, # TODO make these adjustable. Will require going back to the part that computes the stan fit summaries.
-                         # strong_interval = .99,
-                         weak_concordance = .75,
-                         strong_concordance = .95,
-                         out_dir,
-                         verbose = TRUE) {
+get_summary = function(fit_summaries, bead_binders, concordance_scores,
+                       weak_score_threshold = .5,
+                       strong_score_threshold = 1,
+                       weak_concordance = .75,
+                       strong_concordance = .95,
+                       out_dir,
+                       verbose = TRUE) {
 
   worked = fit_summaries %>%
     dplyr::filter(purrr::map_lgl(summary, ~is.null(.x$error))) %>%
@@ -528,9 +523,23 @@ write_summary = function(fit_summaries, bead_binders, concordance_scores,
   with_concord$note = c('', "This protein showed normalized bead output above the specified bead binding enrichment threshold (default 1)")[(with_concord$protein %in% bead_binders$protein) + 1]
 
   with_concord = with_concord %>%
-    mutate(strong_hit = (ixn_score > strong_score_threshold) & !(`0.5%` < 0 & `99.5%` > 0) & (concordance > strong_concordance),
-           weak_hit = (ixn_score > weak_score_threshold) & !(`2.5%` < 0 & `97.5%` > 0) & (concordance > weak_concordance)) %>%
+    dplyr::mutate(strong_hit = (ixn_score > strong_score_threshold) & !(`0.5%` < 0 & `99.5%` > 0) & (concordance > strong_concordance),
+                  weak_hit = (ixn_score > weak_score_threshold) & !(`2.5%` < 0 & `97.5%` > 0) & (concordance > weak_concordance)) %>%
     dplyr::select(protein, strain, ixn_score, strong_hit, weak_hit, concordance, p_type_s, `0.25%`:`99.75%`, note)
+
+  list(wc = with_concord,
+       op = other_params)
+}
+
+#' Write out fit summary files with notes on bead binding
+write_summary = function(fit_summary,
+                         out_dir,
+                         verbose = TRUE) {
+
+  summs = fit_summary
+
+  with_concord = summs$wc
+  other_params = summs$op
 
   if (verbose & nrow(with_concord) > 1048576) {
     message("More scores than Excel can handle. Only writing out the first 10,000 to the Excel file. The full results will also be written to a tsv")
@@ -666,12 +675,14 @@ model_proteins_separately = function(count_path,
   save(model_fits, bead_binding, concordance,
        file = paste0(out_dir, 'all_outputs.RData'))
 
-  write_summary(model_fits, bead_binding, concordance, out_dir = out_dir)
+  fit_summary = get_summary(model_fits, bead_binding, concordance)
+
+  write_summary(fit_summary, out_dir, verbose)
 
   if (!save_split) {
     if (verbose) message("Removing split data directory...")
     unlink(split_data_dir)
   }
 
-  model_fits
+  fit_summary$wc
 }
