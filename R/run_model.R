@@ -125,8 +125,8 @@ run_model = function(count_path,
 
   bh_summary = bh_fit$summary('mean' = mean,
                               'se' = posterior::mcse_mean,
-                              'med' = median,
-                              'qs' = ~quantile(.x, probs = c(.0025, .005, .025, .05, .1, .25,
+                              'med' = stats::median,
+                              'qs' = ~stats::quantile(.x, probs = c(.0025, .005, .025, .05, .1, .25,
                                                              .75, .9, .95, .975, .995, .9975)),
                               'conv' = posterior::default_convergence_measures(),
                               'p_type_s' = p_type_s)

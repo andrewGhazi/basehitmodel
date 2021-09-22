@@ -11,7 +11,8 @@ filter_multirun(
   check_cache = TRUE,
   min_n_nz = 3,
   min_frac_nz = 0.5,
-  drop_multirun_strains = TRUE
+  drop_multirun_strains = TRUE,
+  verbose = TRUE
 )
 }
 \description{

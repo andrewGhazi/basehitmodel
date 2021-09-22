@@ -1,22 +1,24 @@
-tick = function(x){
+tick = function(x) {
   paste0("`", x, "`")
 }
 
 #' @title Make a hit calling plot
-#' @description Show both the posterior intervals and placement in the concordance distribution
+#' @description Show both the posterior intervals and placement in the
+#'   concordance distribution
+#' @details The concordance distribution shows the concordance values for all
+#'   interactions that exclude 0 as a credible value by 95% interval
 #' @return a list of three plots
+#' @export
 hit_calling_plot = function(protein_, strain_,
                             bead_binding,
                             concordances,
-                            fit_summary, # TODO make it not need redundant arguments. this has the same information as the previous arg
+                            fit_summary,
                             weak_score_threshold = .5,
                             strong_score_threshold = 1,
                             weak_concordance = .75,
                             strong_concordance = .95,
                             tags = TRUE,
-                            intervals = c(.95, .99),
-                            algorithm = 'variational',
-                            seed = 1234) {
+                            intervals = c(.95, .99)) {
 
   int_cols = c(paste0(100 * sort(c((1 - intervals) / 2,
                     (1 - intervals) / 2 + intervals)), "%"), "ixn_score")
@@ -26,6 +28,8 @@ hit_calling_plot = function(protein_, strain_,
 
   interval_plot = ggplot(interval_df,
          aes(x = interaction_score)) +
+    geom_vline(xintercept = c(weak_score_threshold, strong_score_threshold),
+               color = 'grey60') +
     geom_segment(lwd = 1,
                  color = 'black',
                  aes_string(x = tick(int_cols[1]),
@@ -62,8 +66,7 @@ hit_calling_plot = function(protein_, strain_,
     geom_vline(color = 'red',
                xintercept = c(ixn_summary$concordance)) +
     theme_light() +
-    theme(text = element_text(size = 7),
-          axis.text.y = element_blank(),
+    theme(axis.text.y = element_blank(),
           axis.ticks.y = element_blank()) +
     labs(y = NULL)
 
@@ -78,6 +81,150 @@ hit_calling_plot = function(protein_, strain_,
   }
 
   both_plot = (interval_plot) + (entropy_plot ) +
+    plot_layout(design = layout_str,
+                tag_level = "keep") +
+    plot_annotation(tag_levels = tl) &
+    theme(plot.tag = element_text(size = 12))
+
+  print(both_plot)
+  plot_list = list(a = interval_plot,
+                   b = entropy_plot,
+                   ab = both_plot)
+  return(plot_list)
+}
+
+#' Show hit-calling metrics for multiple interactions
+#' @description Plot both the posterior intervals of interaction score and
+#'   position in the concordance distribution
+#' @param ixns a character string giving multiple interactions as protein:strain
+#' @param bead_binding bead-binding enrichment dataframe (saved as part of
+#'   all_outputs.RData)
+#' @param concordances concordance dataframe (saved as part of
+#'   all_outputs.RData)
+#' @param fit_summary the interaction score summary dataframe (result from
+#'   bhm::model_proteins_separately())
+#' @param name_df a dataframe giving the strain identifiers and taxonomic names in two columns: "strain" and "strain_name"
+#' @param weak_score_threshold score threshold for calling weak hits
+#' @param strong_score_threshold score threshold for calling strong hits
+#' @param weak_concordance concordance threshold for weak hits
+#' @param strong_concordance concordance threshold for calling strong hits
+#' @param global_entropy logical indicating whether to show the global entropy
+#'   histogram of all profiled interactions (TRUE) or only interactions with
+#'   scores that exclude 0 by the narrower interval (default FALSE)
+#' @param tags logical: show A & B on the two panels?
+#' @param intervals amount of probability mass to include in the two intervals
+#' @return a list of three plots: the interval plot, the entropy plot, and the two stuck together
+#' @export
+multi_hit_calling_plot = function(ixns = c("CD55:AIEC", "CEACAM1:AIEC", "CD7:AIEC", "CEACAM1:NWP04"),
+                                  bead_binding,
+                                  concordances,
+                                  fit_summary,
+                                  name_df = NULL,
+                                  weak_score_threshold = .5,
+                                  strong_score_threshold = 1,
+                                  weak_concordance = .75,
+                                  strong_concordance = .95,
+                                  global_entropy = FALSE,
+                                  tags = TRUE,
+                                  intervals = c(.95, .99)) {
+
+  int_cols = c(paste0(100 * sort(c((1 - intervals) / 2,
+                                   (1 - intervals) / 2 + intervals)), "%"), "ixn_score", 'protein', 'strain', "concordance")
+  if (!missing(name_df)) {
+    int_cols = c(int_cols, "strain_name")
+  }
+  ixn_df = data.table(ixn = ixns) %>%
+    tidyr::separate(ixn, into = c('protein_', 'strain_'), remove = FALSE, sep = ":")
+
+  if (!missing(name_df)) {
+    name_df = as.data.table(name_df)
+    fit_summary = fit_summary[name_df, on = 'strain'][, strain_name := paste(strain, '_', strain_name, sep = '')]
+    interval_df = fit_summary[protein %in% ixn_df$protein_ | strain %in% ixn_df$strain_] %>%
+      mutate(ixn = paste(protein, strain, sep = ":")) %>%
+      .[ixn %in% ixn_df$ixn] %>%
+      .[, ..int_cols] %>%
+      mutate(interaction = forcats::fct_reorder(factor(paste(protein, gsub(' ', '_', strain_name), sep = ":")),
+                                                .x = ixn_score))
+  } else {
+    interval_df = fit_summary[protein %in% ixn_df$protein_ | strain %in% ixn_df$strain_] %>%
+      mutate(ixn = paste(protein, strain, sep = ":")) %>%
+      .[ixn %in% ixn_df$ixn] %>%
+      .[, ..int_cols] %>%
+      mutate(interaction = forcats::fct_reorder(factor(paste(protein, gsub(' ', '_', strain), sep = ":")),
+                                                .x = ixn_score))
+  }
+
+
+
+  interval_plot = ggplot(interval_df,
+                         aes(x = ixn_score)) +
+    geom_vline(xintercept = c(weak_score_threshold, strong_score_threshold),
+               color = 'grey60') +
+    geom_segment(lwd = 1,
+                 color = 'black',
+                 aes_string(x = tick(int_cols[1]),
+                            xend = tick(int_cols[4]),
+                            y = "interaction",
+                            yend = "interaction")) +
+    geom_segment(lwd = 3,
+                 aes_string(x = tick(int_cols[2]),
+                            xend = tick(int_cols[3]),
+                            y = "interaction",
+                            yend = "interaction",
+                            color = "interaction")) +
+    geom_point(aes(y = interaction,
+                   x = ixn_score)) +
+    geom_vline(xintercept = 0,
+               lty = 2,
+               color = "grey") +
+    theme_light() +
+    theme(axis.ticks.y = element_blank(),
+          axis.text.y = element_blank(),
+          axis.title.y = element_blank(),
+          panel.grid.minor.y = element_blank(),
+          panel.grid.major.y = element_blank()) +
+    labs(x = "interaction score") +
+    guides(color = guide_legend(reverse = TRUE))+
+    scale_color_brewer(palette = "Set1")
+
+  ixn_summary = interval_df
+
+
+  if (global_entropy){
+    entropy_input = fit_summary
+  } else {
+    # V These are interactions that would be weak hits by the posterior interval criterion alone
+    entropy_input = fit_summary[!(fit_summary[,which(names(fit_summary) == int_cols[2]), with = FALSE][[1]] < 0 &
+                                    fit_summary[,which(names(fit_summary) == int_cols[3]), with = FALSE][[1]] > 0)]
+  }
+
+  entropy_plot = entropy_input %>%
+    ggplot(aes(concordance)) +
+    geom_histogram(boundary = 0, bins = 100) +
+    geom_vline(lty = 2,
+               xintercept = c(weak_concordance, strong_concordance)) +
+    geom_vline(data = interval_df,
+               aes(xintercept = concordance,
+                   color = interaction),
+               key_glyph = 'rect') +
+    theme_light() +
+    theme(axis.text.y = element_blank(),
+          axis.ticks.y = element_blank()) +
+    labs(y = NULL) +
+    guides(color = guide_legend(reverse = TRUE)) +
+    scale_color_brewer(palette = "Set1")
+
+  layout_str = "
+  12
+  12"
+
+  if (tags) {
+    tl = "A"
+  } else {
+    tl = NULL
+  }
+
+  both_plot = (interval_plot+ theme(legend.position = 'none')) + (entropy_plot ) +
     plot_layout(design = layout_str,
                 tag_level = "keep") +
     plot_annotation(tag_levels = tl) &

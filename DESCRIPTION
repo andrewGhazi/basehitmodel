@@ -1,10 +1,10 @@
-Package: bhm
+Package: basehitmodel
 Type: Package
 Title: Runs the basehit ZINB model
 Version: 0.1.0
 Author: Andrew Ghazi
 Maintainer: Andrew Ghazi <aghazi@broadinstitute.org>
-Description: Runs a ZINB regression model on BASEHIT data with per-sample zero inflation
+Description: This package runs a ZINB regression model on BASEHIT data with per-sample zero inflation.
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
@@ -19,5 +19,12 @@ Imports:
     readxl,
     furrr,
     stringr,
-    patchwork
+    ggplot2,
+    patchwork,
+    forcats,
+    purrr,
+    posterior,
+    rlang,
+    stats,
+    utils
 RoxygenNote: 7.1.1

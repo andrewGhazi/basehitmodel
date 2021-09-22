@@ -356,6 +356,7 @@ fit_one_protein = function(protein,
                            save_fits,
                            proteins,
                            ixn_prior_width,
+                           iter_sampling,
                            algorithm,
                            out_dir) {
 
@@ -416,10 +417,10 @@ fit_one_protein = function(protein,
   if (algorithm == 'variational') {
     # TODO expose more of the stan parameters to the user
     protein_fit = protein_model$variational(data = data_list,
-                                            output_samples = 5000)
+                                            output_samples = iter_sampling)
   } else {
     protein_fit = protein_model$sample(data = data_list,
-                                       iter_sampling = 5000)
+                                       iter_sampling = iter_sampling)
   }
 
   if (save_fits) {
@@ -428,8 +429,8 @@ fit_one_protein = function(protein,
 
   protein_summary = protein_fit$summary('mean' = mean,
                                         'se' = posterior::mcse_mean,
-                                        'med' = median,
-                                        'qs' = ~quantile(.x, probs = c(.0025, .005, .025, .05, .1, .25,
+                                        'med' = stats::median,
+                                        'qs' = ~stats::quantile(.x, probs = c(.0025, .005, .025, .05, .1, .25,
                                                                        .75, .9, .95, .975, .995, .9975)),
                                         'conv' = posterior::default_convergence_measures(),
                                         'p_type_s' = p_type_s)
@@ -459,6 +460,7 @@ fit_models = function (algorithm = algorithm,
                        bh_input,
                        proteins,
                        ixn_prior_width,
+                       iter_sampling,
                        out_dir,
                        seed) {
 
@@ -476,6 +478,7 @@ fit_models = function (algorithm = algorithm,
                                 # bh_input = bh_input,
                                 proteins = proteins,
                                 algorithm = algorithm,
+                                iter_sampling = iter_sampling,
                                 out_dir = out_dir,
                                 .options = furrr_options(seed = seed),
                                 .progress = TRUE)
@@ -597,6 +600,7 @@ check_out_dir = function(out_dir) {
 #'
 #' @inheritParams run_model
 #' @param bead_binding_threshold proteins with enrichment in the beads above this threshold get noted in the output
+#' @param iter_sampling number of posterior samples to draw
 #' @details The count file should have the first row specifying proteins, the
 #'   second specifying barcodes, and all others after that specifying the output
 #'   counts for each strain counts for each barcode (i.e. wide format, strain x
@@ -611,6 +615,7 @@ model_proteins_separately = function(count_path,
                                      split_data_dir = NULL,
                                      ixn_prior_width = .15,
                                      algorithm = 'variational',
+                                     iter_sampling = 5000,
                                      save_split = TRUE,
                                      save_fits = FALSE,
                                      bead_binding_threshold = 1,
@@ -663,6 +668,7 @@ model_proteins_separately = function(count_path,
 
   if (verbose) message("Step 7/8 Fitting model by protein...")
   model_fits = fit_models(algorithm = algorithm,
+                          iter_sampling = iter_sampling,
                           split_data_dir = split_data_dir,
                           bh_input = filtered_data$bh_input,
                           proteins = unique(filtered_data$bh_input$protein),

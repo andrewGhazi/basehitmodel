@@ -4,16 +4,7 @@
 \alias{write_summary}
 \title{Write out fit summary files with notes on bead binding}
 \usage{
-write_summary(
-  fit_summaries,
-  bead_binders,
-  concordance_scores,
-  weak_score_threshold = 0.5,
-  strong_score_threshold = 1,
-  weak_concordance = 0.75,
-  strong_concordance = 0.95,
-  verbose = TRUE
-)
+write_summary(fit_summary, out_dir, verbose = TRUE)
 }
 \description{
 Write out fit summary files with notes on bead binding

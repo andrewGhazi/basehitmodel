@@ -5,7 +5,12 @@
 \title{Read in the csvs from count path. Split into three for Pre, beads, and
 output.}
 \usage{
-read_multirun(count_path, count_threshold = 4, verbose = TRUE)
+read_multirun(
+  count_path,
+  count_threshold = 4,
+  cache_dir = NULL,
+  verbose = TRUE
+)
 }
 \description{
 Read in the csvs from count path. Split into three for Pre, beads, and

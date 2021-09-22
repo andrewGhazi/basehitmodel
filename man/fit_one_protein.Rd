@@ -6,11 +6,11 @@
 \usage{
 fit_one_protein(
   protein,
-  protein_model,
   split_data_dir,
   save_fits,
-  prots,
+  proteins,
   ixn_prior_width,
+  iter_sampling,
   algorithm,
   out_dir
 )

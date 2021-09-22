@@ -8,9 +8,10 @@ model_proteins_separately(
   count_path,
   out_dir = "outputs/bh_out/",
   cache_dir = "outputs/bh_cache/",
-  model_path = "src/stan_files/single_protein.stan",
+  split_data_dir = NULL,
   ixn_prior_width = 0.15,
   algorithm = "variational",
+  iter_sampling = 5000,
   save_split = TRUE,
   save_fits = FALSE,
   bead_binding_threshold = 1,
@@ -26,7 +27,7 @@ model_proteins_separately(
 
 \item{out_dir}{path to output, must end with a slash}
 
-\item{model_path}{path to the stan model file to use}
+\item{iter_sampling}{number of posterior samples to draw}
 
 \item{bead_binding_threshold}{proteins with enrichment in the beads above this threshold get noted in the output}
 }
