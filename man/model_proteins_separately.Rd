@@ -12,6 +12,7 @@ model_proteins_separately(
   ixn_prior_width = 0.15,
   algorithm = "variational",
   iter_sampling = 5000,
+  iter_warmup = 1000,
   save_split = TRUE,
   save_fits = FALSE,
   bead_binding_threshold = 1,

@@ -11,6 +11,7 @@ fit_one_protein(
   proteins,
   ixn_prior_width,
   iter_sampling,
+  iter_warmup = 1000,
   algorithm,
   out_dir
 )
