@@ -357,6 +357,7 @@ fit_one_protein = function(protein,
                            proteins,
                            ixn_prior_width,
                            iter_sampling,
+                           iter_warmup = 1000,
                            algorithm,
                            out_dir) {
 
@@ -420,7 +421,8 @@ fit_one_protein = function(protein,
                                             output_samples = iter_sampling)
   } else {
     protein_fit = protein_model$sample(data = data_list,
-                                       iter_sampling = iter_sampling)
+                                       iter_sampling = iter_sampling,
+                                       iter_warmup = iter_warmup)
   }
 
   if (save_fits) {
@@ -461,6 +463,7 @@ fit_models = function (algorithm = algorithm,
                        proteins,
                        ixn_prior_width,
                        iter_sampling,
+                       iter_warmup = 1000,
                        out_dir,
                        seed) {
 
@@ -479,8 +482,10 @@ fit_models = function (algorithm = algorithm,
                                 proteins = proteins,
                                 algorithm = algorithm,
                                 iter_sampling = iter_sampling,
+                                iter_warmup = iter_warmup,
                                 out_dir = out_dir,
-                                .options = furrr_options(seed = seed),
+                                .options = furrr_options(seed = seed,
+                                                         scheduling = FALSE),
                                 .progress = TRUE)
 
   res = data.table(protein = proteins,
@@ -616,6 +621,7 @@ model_proteins_separately = function(count_path,
                                      ixn_prior_width = .15,
                                      algorithm = 'variational',
                                      iter_sampling = 5000,
+                                     iter_warmup = 1000,
                                      save_split = TRUE,
                                      save_fits = FALSE,
                                      bead_binding_threshold = 1,
@@ -669,6 +675,7 @@ model_proteins_separately = function(count_path,
   if (verbose) message("Step 7/8 Fitting model by protein...")
   model_fits = fit_models(algorithm = algorithm,
                           iter_sampling = iter_sampling,
+                          iter_warmup = iter_warmup,
                           split_data_dir = split_data_dir,
                           bh_input = filtered_data$bh_input,
                           proteins = unique(filtered_data$bh_input$protein),
