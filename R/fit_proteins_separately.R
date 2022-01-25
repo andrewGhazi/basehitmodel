@@ -450,7 +450,7 @@ fit_one_protein = function(protein,
     summ_dir = file.path(out_dir, "summaries")
     if (!dir.exists(summ_dir)) dir.create(summ_dir)
     save(protein_summary,
-         file = file.path(summ_dir, paste0(prot_name, '.RData')))
+         file = file.path(summ_dir, paste0(protein, '.RData')))
   }
 
   rm(protein_fit)
