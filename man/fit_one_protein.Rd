@@ -8,6 +8,7 @@ fit_one_protein(
   protein,
   split_data_dir,
   save_fits,
+  save_summaries,
   proteins,
   ixn_prior_width,
   iter_sampling,

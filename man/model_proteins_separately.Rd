@@ -15,6 +15,7 @@ model_proteins_separately(
   iter_warmup = 1000,
   save_split = TRUE,
   save_fits = FALSE,
+  save_summaries = TRUE,
   bead_binding_threshold = 1,
   save_bead_binders = TRUE,
   min_n_nz = 3,

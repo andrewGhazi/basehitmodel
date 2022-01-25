@@ -29,7 +29,7 @@ all_outputs.RData)}
 all_outputs.RData)}
 
 \item{fit_summary}{the interaction score summary dataframe (result from
-bhm::model_proteins_separately())}
+basehitmodel::model_proteins_separately())}
 
 \item{name_df}{a dataframe giving the strain identifiers and taxonomic names in two columns: "strain" and "strain_name"}
 

@@ -354,6 +354,7 @@ fit_one_protein = function(protein,
                            # protein_model,
                            split_data_dir,
                            save_fits,
+                           save_summaries,
                            proteins,
                            ixn_prior_width,
                            iter_sampling,
@@ -445,8 +446,12 @@ fit_one_protein = function(protein,
 
   protein_summary = strain_i_df[protein_summary, on = 's_i']
 
-  # save(protein_summary, p1_eta,
-  #      file = paste0(out_dir, paste0(prot_name, '.RData')))
+  if (save_summaries) {
+    summ_dir = file.path(out_dir, "summaries")
+    if (!dir.exists(summ_dir)) dir.create(summ_dir)
+    save(protein_summary,
+         file = file.path(summ_dir, paste0(prot_name, '.RData')))
+  }
 
   rm(protein_fit)
   gc()
@@ -457,8 +462,9 @@ fit_one_protein = function(protein,
 fit_safely = purrr::safely(fit_one_protein)
 
 fit_models = function (algorithm = algorithm,
-                       split_data_dir = split_data_dir,
-                       save_fits = save_fits,
+                       split_data_dir,
+                       save_fits,
+                       save_summaries,
                        bh_input,
                        proteins,
                        ixn_prior_width,
@@ -477,6 +483,7 @@ fit_models = function (algorithm = algorithm,
                                 .f = fit_safely,
                                 split_data_dir = split_data_dir,
                                 save_fits = save_fits,
+                                save_summaries = save_summaries,
                                 ixn_prior_width = ixn_prior_width,
                                 # bh_input = bh_input,
                                 proteins = proteins,
@@ -624,6 +631,7 @@ model_proteins_separately = function(count_path,
                                      iter_warmup = 1000,
                                      save_split = TRUE,
                                      save_fits = FALSE,
+                                     save_summaries = TRUE,
                                      bead_binding_threshold = 1,
                                      save_bead_binders = TRUE,
                                      min_n_nz = 3,
@@ -680,6 +688,7 @@ model_proteins_separately = function(count_path,
                           bh_input = filtered_data$bh_input,
                           proteins = unique(filtered_data$bh_input$protein),
                           save_fits = save_fits,
+                          save_summaries = save_summaries,
                           ixn_prior_width = ixn_prior_width,
                           out_dir = out_dir,
                           seed = seed)
