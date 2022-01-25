@@ -102,7 +102,7 @@ hit_calling_plot = function(protein_, strain_,
 #' @param concordances concordance dataframe (saved as part of
 #'   all_outputs.RData)
 #' @param fit_summary the interaction score summary dataframe (result from
-#'   bhm::model_proteins_separately())
+#'   basehitmodel::model_proteins_separately())
 #' @param name_df a dataframe giving the strain identifiers and taxonomic names in two columns: "strain" and "strain_name"
 #' @param weak_score_threshold score threshold for calling weak hits
 #' @param strong_score_threshold score threshold for calling strong hits

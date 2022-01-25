@@ -363,7 +363,7 @@ fit_one_protein = function(protein,
 
   i = which(proteins == protein)
   model_path = system.file("stan", "single_protein_by_ixn_width.stan",
-                           package = 'bhm',
+                           package = 'basehitmodel',
                            mustWork = TRUE)
   protein_model = cmdstan_model(stan_file = model_path, quiet = TRUE)
 
@@ -468,7 +468,7 @@ fit_models = function (algorithm = algorithm,
                        seed) {
 
   model_path = system.file("stan", "single_protein_by_ixn_width.stan",
-                           package = 'bhm',
+                           package = 'basehitmodel',
                            mustWork = TRUE)
   protein_model = cmdstan_model(stan_file = model_path, quiet = TRUE)
   # compile it once at first so the first iterations of the future_map don't try to all compile it together
