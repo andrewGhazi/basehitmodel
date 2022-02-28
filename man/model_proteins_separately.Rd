@@ -25,13 +25,33 @@ model_proteins_separately(
 )
 }
 \arguments{
-\item{count_path}{The path to a Mapped_bcs.csv file}
+\item{count_path}{path to a directory of mapped_bcs.csv files}
 
-\item{out_dir}{path to output, must end with a slash}
+\item{cache_dir}{path to use a cache directory (will be created if non-existent)}
 
-\item{iter_sampling}{number of posterior samples to draw}
+\item{split_data_dir}{path to a directory for data split by protein (will be created if non-existent)}
+
+\item{ixn_prior_width}{standard deviation of zero-centered normal prior on interaction effects}
+
+\item{algorithm}{stan algorithm to use for posterior evaluation}
+
+\item{iter_sampling}{number of post-warmup samples to draw per chain}
+
+\item{iter_warmup}{number of warmup samples to draw per chain}
+
+\item{save_split}{logical indicating whether to keep the split data directory intact}
+
+\item{save_fits}{logical indicating whether to save the posterior fit objects (will use a lot more space if TRUE)}
 
 \item{bead_binding_threshold}{proteins with enrichment in the beads above this threshold get noted in the output}
+
+\item{save_bead_binders}{logical indicating whether to save information on bead binders to a separate file}
+
+\item{min_n_nz}{minimum number of non-zero counts required for an interaction to not be entirely discarded}
+
+\item{min_frac_nz}{minimum proportion of non-zero counts required for an interaction to not be entirely discarded}
+
+\item{verbose}{logical indicating whether to print informative progress messages}
 }
 \description{
 Run the basehit model one protein at a time
