@@ -18,12 +18,12 @@ p_type_s = function(x){
 #'
 #'   Changing the stan model will almost certainly break things if it has a different
 #'   parameterization as the default.
-#' @export
 run_model = function(count_path,
                      out_dir = 'outputs/bh_out/',
                      out_name = 'results.xlsx',
                      model_path = 'src/stan_files/basehit_reduce_redundancy_rs_nonsquare.stan',
                      vb_threads = 4) {
+  # TODO deprecate this function.
 
   if (dir.exists(out_dir)){
     stop("Please provide an output directory that doesn't already exist.")
