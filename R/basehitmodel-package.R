@@ -3,7 +3,7 @@
 #' @import tibble
 #' @import dplyr
 #' @import magrittr
-#' @import tidyr
+#' @rawNamespace import(tidyr, except = c(extract))
 #' @import cmdstanr
 #' @import ggplot2
 #' @import patchwork

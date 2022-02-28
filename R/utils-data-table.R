@@ -8,5 +8,5 @@
 # data.table defines; see the 'Importing data.table' vignette for more
 # advice (vignette('datatable-importing', 'data.table')).
 #
-#' @rawNamespace import(data.table, except = c(first, last, between, extract))
+#' @rawNamespace import(data.table, except = c(first, last, between))
 NULL
