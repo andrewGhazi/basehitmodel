@@ -3,8 +3,8 @@
 
 This package requires
 [cmdstanr](https://mc-stan.org/cmdstanr/articles/cmdstanr.html), and so
-can’t go on CRAN (nor Bioc I think). Download this repo and install it
-from that.
+can’t go on CRAN (nor Bioc I think). Install `cmdstanr` first, then use
+`devtools::install_github("andrewGhazi/basehitmodel")`.
 
 ## Example
 
@@ -22,7 +22,7 @@ model_proteins_separately(count_path = "~/basehit/data/BASEHIT_rescreen/",
                           cache_dir = "/path/to/outputs/bh_cache/",
                           split_data_dir = NULL,
                           ixn_prior_width = 0.15,
-                          algorithm = "variational",
+                          algorithm = "variational",1
                           iter_sampling = 5000,
                           iter_warmup = 1000,
                           save_split = TRUE,
