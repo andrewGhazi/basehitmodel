@@ -611,19 +611,30 @@ check_out_dir = function(out_dir) {
 #' Run the basehit model one protein at a time
 #'
 #' @param count_path path to a directory of mapped_bcs.csv files
-#' @param cache_dir path to use a cache directory (will be created if non-existent)
-#' @param split_data_dir path to a directory for data split by protein (will be created if non-existent)
-#' @param ixn_prior_width standard deviation of zero-centered normal prior on interaction effects
-#' @param algorithm stan algorithm to use for posterior evaluation
+#' @param cache_dir path to use a cache directory (will be created if
+#'   non-existent)
+#' @param split_data_dir path to a directory for data split by protein (will be
+#'   created if non-existent)
+#' @param ixn_prior_width standard deviation of zero-centered normal prior on
+#'   interaction effects
+#' @param algorithm stan algorithm to use for posterior evaluation. Any setting
+#'   other than "variational" uses Stan's adaptive HMC sampler.
 #' @param iter_sampling number of post-warmup samples to draw per chain
 #' @param iter_warmup number of warmup samples to draw per chain
-#' @param save_split logical indicating whether to keep the split data directory intact
-#' @param save_fits logical indicating whether to save the posterior fit objects (will use a lot more space if TRUE)
-#' @param save_bead_binders logical indicating whether to save information on bead binders to a separate file
-#' @param min_n_nz minimum number of non-zero counts required for an interaction to not be entirely discarded
-#' @param min_frac_nz minimum proportion of non-zero counts required for an interaction to not be entirely discarded
-#' @param verbose logical indicating whether to print informative progress messages
-#' @param bead_binding_threshold proteins with enrichment in the beads above this threshold get noted in the output
+#' @param save_split logical indicating whether to keep the split data directory
+#'   intact
+#' @param save_fits logical indicating whether to save the posterior fit objects
+#'   (will use a lot more space if TRUE)
+#' @param save_bead_binders logical indicating whether to save information on
+#'   bead binders to a separate file
+#' @param min_n_nz minimum number of non-zero counts required for an interaction
+#'   to not be entirely discarded
+#' @param min_frac_nz minimum proportion of non-zero counts required for an
+#'   interaction to not be entirely discarded
+#' @param verbose logical indicating whether to print informative progress
+#'   messages
+#' @param bead_binding_threshold proteins with enrichment in the beads above
+#'   this threshold get noted in the output
 #' @details The count file should have the first row specifying proteins, the
 #'   second specifying barcodes, and all others after that specifying the output
 #'   counts for each strain counts for each barcode (i.e. wide format, strain x
