@@ -85,6 +85,7 @@ get_prot_bc_map = function(count_file) {
 read_multirun = function(count_path,
                          count_threshold = 4,
                          cache_dir = NULL,
+                         out_dir = NULL,
                          verbose = TRUE) {
 
   if (!missing(cache_dir) && file.exists(paste0(cache_dir, 'count_list.RData'))) {
@@ -115,13 +116,16 @@ read_multirun = function(count_path,
     message(paste0(capture.output(frac_wr), collapse = '\n'))
   }
 
-  bh_wr_input = bh_pre[count > count_threshold, # this drops poorly represented barcodes
-                       .(barcode, run_id, pre_count = count)][, wr_bc_runs := paste(barcode, run_id, sep = '_')]
+  # V this drops poorly represented barcodes
+  bh_wr_input = bh_pre[count > count_threshold, .(barcode, run_id, pre_count = count)][, wr_bc_runs := paste(barcode, run_id, sep = '_')]
+  bh_pr_input = bh_pre[count <= count_threshold][,-"run_id"]
+  data.table::fwrite(bh_pr_input,
+                     file = file.path(out_dir, "barcodes_below_pre_thresh.csv"))
 
   if (verbose) message("* Reading output counts... ")
   count_dfs = purrr::map(count_files, read_outputs_one,
-                                prot_to_bc = prot_to_bc,
-                                bh_wr_input = bh_wr_input) %>%
+                         prot_to_bc = prot_to_bc,
+                         bh_wr_input = bh_wr_input) %>%
     purrr::transpose() %>%
     purrr::map(data.table::rbindlist)
 
@@ -200,7 +204,12 @@ filter_multirun = function(count_list,
   ps_df = id_df[, .(sample_id, strain, protein, ps)] %>%
     unique
 
-  bh_wr_ixns = ps_df[bh_n_nz[n_nz >= min_n_nz | p_nz > min_frac_nz], on = .(strain, protein)] # well represented
+  bh_wr_ixns = ps_df[bh_n_nz[n_nz >= min_n_nz | p_nz > min_frac_nz], on = .(strain, protein)]
+  # ^ data frame of well represented interactions
+  # It needs to have >= the minimum number of nonzero observations
+  # Track those that are dropped
+
+
   bh_wr_output = ps_df[count_list$wr_output, on = .(sample_id, protein)][ps %in% bh_wr_ixns$ps]
 
   bc_input_by_run = bh_pre[, bc_run := paste(barcode, run_id, sep = '_')][bc_run %in% bh_wr_input$wr_bc_runs] %>%
@@ -635,6 +644,7 @@ check_out_dir = function(out_dir) {
 #'   messages
 #' @param bead_binding_threshold proteins with enrichment in the beads above
 #'   this threshold get noted in the output
+#' @param pre_count_threshold
 #' @details The count file should have the first row specifying proteins, the
 #'   second specifying barcodes, and all others after that specifying the output
 #'   counts for each strain counts for each barcode (i.e. wide format, strain x
@@ -656,6 +666,7 @@ model_proteins_separately = function(count_path,
                                      save_summaries = TRUE,
                                      bead_binding_threshold = 1,
                                      save_bead_binders = TRUE,
+                                     pre_count_threshold = 4,
                                      min_n_nz = 3,
                                      min_frac_nz = .5,
                                      verbose = TRUE,
@@ -666,7 +677,10 @@ model_proteins_separately = function(count_path,
 
   if (verbose) message("Step 2/8 Reading data...")
   count_list = read_multirun(count_path,
-                             cache_dir = cache_dir) # a list of four 5 dataframes: pre, WR pre, beads, and WR output. Also the prot_to_bc header lines
+                             cache_dir = cache_dir,
+                             out_dir = out_dir,
+                             count_threshold = pre_count_threshold)
+  # returns a list of dataframes: pre, WR pre, beads, and WR output. Also the prot_to_bc header lines
 
   if (verbose) message("Step 3/8 Filtering data...")
   filtered_data = filter_multirun(count_list,
