@@ -132,7 +132,7 @@ read_multirun = function(count_path,
   count_list = list(pre = bh_pre,
                     wr_pre = bh_wr_input,
                     beads = count_dfs[[1]],
-                    wr_output = count_dfs[[2]],
+                    wr_output = count_dfs[[2]], # Counts that are from barcodes well-represented in the pre sample
                     prot_to_bc = prot_to_bc)
 
   if (!missing(cache_dir)) {
@@ -148,6 +148,7 @@ read_multirun = function(count_path,
 #'   output counts or at least a proportion of nonzero counts > min_frac_nz
 filter_multirun = function(count_list,
                            cache_dir = NULL,
+                           out_dir = NULL,
                            save_outputs = TRUE,
                            check_cache = TRUE,
                            min_n_nz = 3,
@@ -197,18 +198,23 @@ filter_multirun = function(count_list,
 
   # n_nz = "number non-zero"
   bh_n_nz = samp_strain_df[count_list$wr_output, on = 'sample_id'] %>%
-    .[, .(n_nz = sum(count != 0),
-          p_nz = mean(count != 0)),
+    .[, .(n_obs = .N,
+          n_nz = sum(count != 0),
+          p_nz = mean(count != 0),
+          max_obs = max(count)),
       by = .(strain, protein)]
 
   ps_df = id_df[, .(sample_id, strain, protein, ps)] %>%
     unique
 
-  bh_wr_ixns = ps_df[bh_n_nz[n_nz >= min_n_nz | p_nz > min_frac_nz], on = .(strain, protein)]
+  bh_wr_ixns = ps_df[bh_n_nz[n_nz >= min_n_nz | p_nz > min_frac_nz][,-c("n_obs", "max_obs")], on = .(strain, protein)]
   # ^ data frame of well represented interactions
   # It needs to have >= the minimum number of nonzero observations
-  # Track those that are dropped
 
+  bh_pr_ixns = bh_n_nz[!(n_nz >= min_n_nz | p_nz > min_frac_nz)]
+  names(bh_pr_ixns)[3:6] = c('n_observations', "n_nonzero", "proportion_nonzero", 'maximum_observation')
+  data.table::fwrite(bh_pr_ixns,
+                     file = file.path(out_dir, "interactions_below_thresholds.csv"))
 
   bh_wr_output = ps_df[count_list$wr_output, on = .(sample_id, protein)][ps %in% bh_wr_ixns$ps]
 
@@ -220,8 +226,7 @@ filter_multirun = function(count_list,
 
   if (drop_multirun_strains) {
 
-    samples_to_drop = unique(io_by_run[,.(sample_id, strain)]) %>%
-      .[strain %in% c('AB9', 'AIEC', 'RG151') & !grepl('plt[1234]$', sample_id)]
+    samples_to_drop = unique(io_by_run[,.(sample_id, strain)])[strain %in% c('AB9', 'AIEC', 'RG151') & !grepl('plt[1234]$', sample_id)]
     # ^ TODO generalize this for other strains/formats if necessary
 
     io_by_run = io_by_run[!(sample_id %in% samples_to_drop$sample_id)]
@@ -644,14 +649,15 @@ check_out_dir = function(out_dir) {
 #'   messages
 #' @param bead_binding_threshold proteins with enrichment in the beads above
 #'   this threshold get noted in the output
-#' @param pre_count_threshold
+#' @param pre_count_threshold barcodes with counts at or below this value in the
+#'   Pre ("input") sample are dropped.
 #' @details The count file should have the first row specifying proteins, the
 #'   second specifying barcodes, and all others after that specifying the output
 #'   counts for each strain counts for each barcode (i.e. wide format, strain x
 #'   barcode)
 #'
 #'   Implemented with furrr, so run a call to plan() that's appropriate for your
-#'   system in order to parallelize
+#'   system in order to parallelize.
 #' @export
 model_proteins_separately = function(count_path,
                                      out_dir = 'outputs/bh_out/',
@@ -685,6 +691,7 @@ model_proteins_separately = function(count_path,
   if (verbose) message("Step 3/8 Filtering data...")
   filtered_data = filter_multirun(count_list,
                                   cache_dir = cache_dir,
+                                  out_dir = out_dir,
                                   min_n_nz = min_n_nz,
                                   min_frac_nz = min_frac_nz,
                                   save_outputs = TRUE,
