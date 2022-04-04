@@ -225,11 +225,20 @@ filter_multirun = function(count_list,
   io_by_run = bc_input_by_run[bh_wr_output, on = .(barcode, run_id)]
 
   if (drop_multirun_strains) {
+    # This drops the control strains from all but the first runs. It might be
+    # better to work that data in, but
 
-    samples_to_drop = unique(io_by_run[,.(sample_id, strain)])[strain %in% c('AB9', 'AIEC', 'RG151') & !grepl('plt[1234]$', sample_id)]
+    # - It can potentially make them behave strangely (their posterior intervals
+    # will be much more likely to exclude 0) compared to other strains given
+    # that it makes them look like they get way more observations.
+
+    # - It makes the indexing really complicated because now you need to keep
+    # track of (protein, strain, run) instead of just (protein,strain)
+
+    samples_to_keep = unique(io_by_run[,.(sample_id, strain)])[strain %in% c('AB9', 'AIEC', 'RG151') & !grepl('plt[1234]$', sample_id)]
     # ^ TODO generalize this for other strains/formats if necessary
 
-    io_by_run = io_by_run[!(sample_id %in% samples_to_drop$sample_id)]
+    io_by_run = io_by_run[!(sample_id %in% samples_to_keep$sample_id)]
   }
 
   bh_input = io_by_run %>%
