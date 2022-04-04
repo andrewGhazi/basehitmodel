@@ -26,5 +26,6 @@ Imports:
     posterior,
     rlang,
     stats,
-    utils
+    utils,
+    readr
 RoxygenNote: 7.1.1

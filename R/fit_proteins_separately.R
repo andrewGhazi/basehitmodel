@@ -540,8 +540,18 @@ get_summary = function(fit_summaries, bead_binders, concordance_scores,
   errored = fit_summaries %>%
     dplyr::filter(purrr::map_lgl(summary, ~!is.null(.x$error)))
 
-  if (verbose) message(paste0("* ", nrow(worked), ' out of ', nrow(fit_summaries),
-                              " (", round(100*nrow(worked)/nrow(fit_summaries), digits = 2), '%) protein fits ran without error.'))
+  save(errored,
+       file = file.path(out_dir, "errored_proteins.RData"))
+
+  eval_error_string = paste0("* ", nrow(worked), ' out of ', nrow(fit_summaries),
+                             " (", round(100*nrow(worked)/nrow(fit_summaries), digits = 2), '%) protein fits ran without error.')
+  warning_file = file.path(out_dir, "warnings.txt")
+
+  readr::write_lines(x = eval_error_string,
+                     file = warning_file,
+                     append = TRUE)
+
+  if (verbose) message(eval_error_string)
 
   parameters = worked %>%
     dplyr::mutate(res = purrr::map(summary, 1)) %>%
