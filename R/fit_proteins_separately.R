@@ -393,6 +393,8 @@ fit_one_protein = function(protein,
 
   split_data = read_split(i, split_data_dir)
 
+  # p1 is the input data for ONE protein.
+  # p1_eta are the corresponding unique etas.
   p1 = split_data$p1
   p1_eta = split_data$p1_eta
 
@@ -429,7 +431,6 @@ fit_one_protein = function(protein,
 
   data_list = list(n_strain = dplyr::n_distinct(p1$strain),
                    n_bc = dplyr::n_distinct(p1$barcode),
-                   n_ps = dplyr::n_distinct(p1$strain), # because we're only looking at one protein
                    N = nrow(p1),
                    strain_i = p1$s_i,
                    n_eta = nrow(p1_eta),
@@ -672,8 +673,8 @@ check_out_dir = function(out_dir) {
 #'   Pre ("input") sample are dropped.
 #' @details The count file should have the first row specifying proteins, the
 #'   second specifying barcodes, and all others after that specifying the output
-#'   counts for each strain counts for each barcode (i.e. wide format, strain x
-#'   barcode)
+#'   counts for each strain counts for each barcode (i.e. wide format, strain by
+#'   barcode).
 #'
 #'   Implemented with furrr, so run a call to plan() that's appropriate for your
 #'   system in order to parallelize.
