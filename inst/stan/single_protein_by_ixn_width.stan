@@ -13,19 +13,19 @@ data {
   int<lower = 1> n_ps;
   int<lower = 1> N; //total number of count observations
 
-  int<lower=1, upper = n_strain> strain_i[N];
+  array[N] int<lower=1, upper = n_strain> strain_i;
 
   int n_eta;
-  int<lower = 1, upper = n_strain> eta_ps_i[n_eta];
+  array[n_eta] int<lower = 1, upper = n_strain> eta_ps_i;
   vector[n_eta] eta_presum; // precomputed sum of depth & log(pre_count)
-  int<lower = 1> eta_i[N]; // eta index onto count_obs
+  array[N] int<lower = 1> eta_i; // eta index onto count_obs
 
   real<lower=0> ixn_prior_width;
-  int<lower = 0> count_obs[N];
+  array[N] int<lower = 0> count_obs;
 }
 
 parameters {
-  real<lower = 0, upper = 1> theta[n_strain]; // the fraction of zeros by strain
+  array[n_strain] real<lower = 0, upper = 1> theta; // the fraction of zeros by strain
   real protein_baseline;
 
   vector[n_ps] prot_strain;
@@ -34,7 +34,7 @@ parameters {
 
 model {
   int grainsize = 1;
-  real bern_terms[n_strain,2];
+  array[n_strain,2] real bern_terms;
   vector[n_eta] etas;
   etas = eta_presum + protein_baseline + prot_strain[eta_ps_i];
 
