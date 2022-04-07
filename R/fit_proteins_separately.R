@@ -525,6 +525,10 @@ fit_models = function (algorithm = algorithm,
   return(res)
 }
 
+#' @details this function calls hits from the fit summaries. You can change the
+#'   concordance and score cutoffs, but changing the posterior interval widths
+#'   used to call hits is harder because you'd have to also pass those values to
+#'   the part where the fit summaries are computed.
 get_summary = function(fit_summaries, bead_binders, concordance_scores,
                        weak_score_threshold = .5,
                        strong_score_threshold = 1,
