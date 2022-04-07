@@ -600,21 +600,21 @@ write_summary = function(fit_summary,
                          file = paste0(out_dir, 'ixn_scores.xlsx'))
 
     data.table::fwrite(with_concord,
-                       file = paste0(out_dir, "ixn_scores.tsv"),
+                       file = file.path(out_dir, "ixn_scores.tsv"),
                        sep = '\t')
     data.table::fwrite(other_params,
-                       file = paste0(out_dir, "other_parameters.tsv"),
+                       file = file.path(out_dir, "other_parameters.tsv"),
                        sep = '\t')
 
   } else {
     openxlsx::write.xlsx(x = list('ixn_estimates' = with_concord,
                                   'other_parameters' = other_params),
-                         file = paste0(out_dir, 'ixn_scores.xlsx'))
+                         file = file.path(out_dir, 'ixn_scores.xlsx'))
     data.table::fwrite(with_concord,
-                       file = paste0(out_dir, "ixn_scores.tsv"),
+                       file = file.path(out_dir, "ixn_scores.tsv"),
                        sep = '\t')
     data.table::fwrite(other_params,
-                       file = paste0(out_dir, "other_parameters.tsv"),
+                       file = file.path(out_dir, "other_parameters.tsv"),
                        sep = '\t')
   }
 
