@@ -88,9 +88,9 @@ read_multirun = function(count_path,
                          out_dir = NULL,
                          verbose = TRUE) {
 
-  if (!missing(cache_dir) && file.exists(paste0(cache_dir, 'count_list.RData'))) {
+  if (!missing(cache_dir) && file.exists(file.path(cache_dir, 'count_list.RData'))) {
     if (verbose) message("* loading cached count data")
-    load(paste0(cache_dir, 'count_list.RData'))
+    load(file.path(cache_dir, 'count_list.RData'))
     return(count_list)
   }
 
@@ -165,10 +165,10 @@ filter_multirun = function(count_list,
       dir.create(cache_dir)
     }
 
-    if (file.exists(paste0(cache_dir, 'model_inputs.RData'))) {
+    if (file.exists(file.path(cache_dir, 'model_inputs.RData'))) {
       message(paste0("* Loading cached model inputs from ", cache_dir,
                      " . Delete those and re-run if that's not what you want to use."))
-      load(paste0(cache_dir, 'model_inputs.RData'))
+      load(file.path(cache_dir, 'model_inputs.RData'))
       return(list(bh_input = bh_input, bh_eta = bh_eta))
     }
   }
@@ -263,9 +263,9 @@ filter_multirun = function(count_list,
   bh_eta = unique(bh_input[,.(pre_count, strain, sd, protein, p_i, s_i, ps_i, eta_i)])
 
   if (save_outputs) {
-    if (verbose) message(paste0("* Saving filtered inputs to: ", paste0(cache_dir, 'model_inputs.RData')))
+    if (verbose) message(paste0("* Saving filtered inputs to: ", file.path(cache_dir, 'model_inputs.RData')))
     save(bh_input, bh_eta,
-         file = paste0(cache_dir, 'model_inputs.RData'))
+         file = file.path(cache_dir, 'model_inputs.RData'))
   }
 
   return(list(bh_input = bh_input,
@@ -328,9 +328,9 @@ identify_bead_binders = function(wr_pre, prot_to_bc,
   if (verbose) message(paste0("* Identified ", nrow(high_bead_binding), " proteins with high output counts in bead samples..."))
 
   if (save_bead_binders){
-    if (verbose) message(paste0("* Saving high bead binding protein data frame to: ", paste0(out_dir, 'high_bead_binding.RData')))
+    if (verbose) message(paste0("* Saving high bead binding protein data frame to: ", file.path(out_dir, 'high_bead_binding.RData')))
     save(high_bead_binding,
-         file = paste0(out_dir, 'high_bead_binding.RData'))
+         file = file.path(out_dir, 'high_bead_binding.RData'))
   }
 
   return(high_bead_binding)
@@ -363,8 +363,8 @@ get_concordance = function(bh_input,
 }
 
 read_split = function(i, split_data_dir) {
-  p1 = fread(paste0(split_data_dir, i, '.csv.gz'))
-  p1_eta = fread(paste0(split_data_dir, i, '_eta.csv.gz'))
+  p1 = fread(file.path(split_data_dir, paste0(i, '.csv.gz')))
+  p1_eta = fread(file.path(split_data_dir, paste0(i, '_eta.csv.gz')))
   return(list(p1 = p1, p1_eta = p1_eta))
 }
 
@@ -451,7 +451,7 @@ fit_one_protein = function(protein,
   }
 
   if (save_fits) {
-    protein_fit$save_object(paste0(out_dir, '/protein_fit.RDS'))
+    protein_fit$save_object(file.path(out_dir, 'protein_fit.RDS'))
   }
 
   protein_summary = protein_fit$summary('mean' = mean,
@@ -598,7 +598,7 @@ write_summary = function(fit_summary,
   if (verbose & nrow(with_concord) > 1048576) {
     message("More scores than Excel can handle. Only writing out the first 10,000 to the Excel file. The full results will also be written to a tsv")
     openxlsx::write.xlsx(x = list('ixn_scores' = with_concord[1:1e4]),
-                         file = paste0(out_dir, 'ixn_scores.xlsx'))
+                         file = file.path(out_dir, 'ixn_scores.xlsx'))
 
     data.table::fwrite(with_concord,
                        file = file.path(out_dir, "ixn_scores.tsv"),
@@ -771,7 +771,7 @@ model_proteins_separately = function(count_path,
 
   if (verbose) message("Step 8/8 Writing result tables...")
   save(model_fits, bead_binding, concordance,
-       file = paste0(out_dir, 'all_outputs.RData'))
+       file = file.path(out_dir, 'all_outputs.RData'))
 
   fit_summary = get_summary(model_fits, bead_binding, concordance,
                             weak_score_threshold = weak_score_threshold,
