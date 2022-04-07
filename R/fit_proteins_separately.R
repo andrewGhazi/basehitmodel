@@ -137,7 +137,7 @@ read_multirun = function(count_path,
 
   if (!missing(cache_dir)) {
     save(count_list,
-         file = paste0(cache_dir, 'count_list.RData'))
+         file = file.path(cache_dir, 'count_list.RData'))
   }
 
   return(count_list)
