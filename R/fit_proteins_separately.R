@@ -525,6 +525,7 @@ fit_models = function (algorithm = algorithm,
   return(res)
 }
 
+#' Summarise fits
 #' @details this function calls hits from the fit summaries. You can change the
 #'   concordance and score cutoffs, but changing the posterior interval widths
 #'   used to call hits is harder because you'd have to also pass those values to
