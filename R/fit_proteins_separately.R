@@ -296,9 +296,9 @@ write_splits = function(filtered_data,
   }
   for (i in 1:n_write){
     fwrite(bh_input[protein == proteins[i]],
-           file = paste0(split_data_dir, i, '.csv.gz'))
+           file = file.path(split_data_dir, paste0(i, '.csv.gz')))
     fwrite(bh_eta[protein == proteins[i]],
-           file = paste0(split_data_dir, i, '_eta.csv.gz'))
+           file = file.path(split_data_dir, paste0(i, '_eta.csv.gz')))
   }
 
   invisible()
@@ -732,7 +732,7 @@ model_proteins_separately = function(count_path,
   if (verbose) message("Step 4/8 Writing out data split by protein...")
   if (missing(split_data_dir)){
     message("* Using split data directory under cache directory...")
-    split_data_dir = paste0(cache_dir, 'splits/')
+    split_data_dir = file.path(cache_dir, 'splits')
   }
   if (!dir.exists(split_data_dir)) {
     message("* Split data directory doesn't exist. Creating it...")
