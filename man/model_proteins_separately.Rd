@@ -18,8 +18,13 @@ model_proteins_separately(
   save_summaries = TRUE,
   bead_binding_threshold = 1,
   save_bead_binders = TRUE,
+  pre_count_threshold = 4,
   min_n_nz = 3,
   min_frac_nz = 0.5,
+  weak_score_threshold = 0.5,
+  strong_score_threshold = 1,
+  weak_concordance_threshold = 0.75,
+  strong_concordance_threshold = 0.95,
   verbose = TRUE,
   seed = 1234
 )
@@ -55,11 +60,22 @@ this threshold get noted in the output}
 \item{save_bead_binders}{logical indicating whether to save information on
 bead binders to a separate file}
 
+\item{pre_count_threshold}{barcodes with counts at or below this value in the
+Pre ("input") sample are dropped.}
+
 \item{min_n_nz}{minimum number of non-zero counts required for an interaction
 to not be entirely discarded}
 
 \item{min_frac_nz}{minimum proportion of non-zero counts required for an
 interaction to not be entirely discarded}
+
+\item{weak_score_threshold}{lower threshold of interaction score to call weak hits}
+
+\item{strong_score_threshold}{lower threshold of interaction score to call strong hits}
+
+\item{weak_concordance_threshold}{lower threshold of interaction concordance to call weak hits}
+
+\item{strong_concordance_threshold}{lower threshold of interaction concordance to call strong hits}
 
 \item{verbose}{logical indicating whether to print informative progress
 messages}
@@ -70,9 +86,9 @@ Run the basehit model one protein at a time
 \details{
 The count file should have the first row specifying proteins, the
   second specifying barcodes, and all others after that specifying the output
-  counts for each strain counts for each barcode (i.e. wide format, strain x
-  barcode)
+  counts for each strain counts for each barcode (i.e. wide format, strain by
+  barcode).
 
   Implemented with furrr, so run a call to plan() that's appropriate for your
-  system in order to parallelize
+  system in order to parallelize.
 }

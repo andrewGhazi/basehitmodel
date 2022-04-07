@@ -9,6 +9,7 @@ read_multirun(
   count_path,
   count_threshold = 4,
   cache_dir = NULL,
+  out_dir = NULL,
   verbose = TRUE
 )
 }

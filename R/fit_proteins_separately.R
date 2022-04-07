@@ -665,6 +665,10 @@ check_out_dir = function(out_dir) {
 #'   to not be entirely discarded
 #' @param min_frac_nz minimum proportion of non-zero counts required for an
 #'   interaction to not be entirely discarded
+#' @param weak_score_threshold lower threshold of interaction score to call weak hits
+#' @param strong_score_threshold lower threshold of interaction score to call strong hits
+#' @param weak_concordance_threshold lower threshold of interaction concordance to call weak hits
+#' @param strong_concordance_threshold lower threshold of interaction concordance to call strong hits
 #' @param verbose logical indicating whether to print informative progress
 #'   messages
 #' @param bead_binding_threshold proteins with enrichment in the beads above
@@ -695,6 +699,10 @@ model_proteins_separately = function(count_path,
                                      pre_count_threshold = 4,
                                      min_n_nz = 3,
                                      min_frac_nz = .5,
+                                     weak_score_threshold = .5,
+                                     strong_score_threshold = 1,
+                                     weak_concordance_threshold = .75,
+                                     strong_concordance_threshold = .95,
                                      verbose = TRUE,
                                      seed = 1234) {
 
@@ -760,7 +768,12 @@ model_proteins_separately = function(count_path,
   save(model_fits, bead_binding, concordance,
        file = paste0(out_dir, 'all_outputs.RData'))
 
-  fit_summary = get_summary(model_fits, bead_binding, concordance)
+  fit_summary = get_summary(model_fits, bead_binding, concordance,
+                            weak_score_threshold = weak_score_threshold,
+                            strong_score_threshold = strong_score_threshold,
+                            weak_concordance = weak_concordance_threshold,
+                            strong_concordance = strong_concordance_threshold,
+                            out_dir = out_dir)
 
   write_summary(fit_summary, out_dir, verbose)
 

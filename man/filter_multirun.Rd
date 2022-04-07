@@ -7,6 +7,7 @@
 filter_multirun(
   count_list,
   cache_dir = NULL,
+  out_dir = NULL,
   save_outputs = TRUE,
   check_cache = TRUE,
   min_n_nz = 3,
