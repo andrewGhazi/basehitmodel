@@ -34,10 +34,22 @@ read_pre = function(count_file, prot_to_bc) {
   res = fread(count_file, skip = 1) %>%
     dplyr::rename(sample_id = Barcode)
 
-  res$run_id = stringr::str_extract(tail(strsplit(count_file, '/|\\\\')[[1]], 1), '[0-9]+')
+  res$run_id = stringr::str_extract(basename(count_file), '[0-9]+')
 
-  filter_melt_join(pattern = "[Pp]re", inv = FALSE,
-                   res = res, prot_to_bc = prot_to_bc)
+  tall_pre = filter_melt_join(pattern = "[Pp]re", inv = FALSE,
+                              res = res, prot_to_bc = prot_to_bc)
+
+  if (dplyr::n_distinct(tall_pre$sample_id)) {
+    message(paste0("* Detected multiple pre samples in run ", res$run_id[1], ". Summing over pre-samples within run."))
+
+    tall_pre = tall_pre[,.(protein = protein[1], # Just keep the first instance of the other identifiers.
+                           run_id = run_id[1],
+                           sample_id = sample_id[1],
+                           count = sum(count)), by = barcode] |>
+      dplyr::select(protein, barcode, sample_id, run_id, count)
+  }
+
+  return(tall_pre)
 }
 
 #' Read the count file for one run
@@ -154,6 +166,7 @@ filter_multirun = function(count_list,
                            min_n_nz = 3,
                            min_frac_nz = .5,
                            drop_multirun_strains = TRUE,
+                           id_order = c('strain', 'repl', 'plate'),
                            verbose = TRUE) {
 
 
@@ -180,7 +193,7 @@ filter_multirun = function(count_list,
 
   sample_id_df = unique(prot_samp_df[,.(sample_id)]) %>%
     separate(sample_id,
-             into = c('strain', 'repl', 'plate'),
+             into = id_order,
              sep = '-',
              remove = FALSE) %>%
     mutate(across(.fns = as.factor))
@@ -652,6 +665,7 @@ check_out_dir = function(out_dir) {
 #' @param count_path path to a directory of mapped_bcs.csv files
 #' @param cache_dir path to use a cache directory (will be created if
 #'   non-existent)
+#' @param id_order character vector giving the order of dash separated identifiers in the sample_id column
 #' @param split_data_dir path to a directory for data split by protein (will be
 #'   created if non-existent)
 #' @param ixn_prior_width standard deviation of zero-centered normal prior on
@@ -691,6 +705,7 @@ check_out_dir = function(out_dir) {
 model_proteins_separately = function(count_path,
                                      out_dir = 'outputs/bh_out/',
                                      cache_dir = 'outputs/bh_cache/',
+                                     id_order = c('strain', 'repl', 'plate'),
                                      split_data_dir = NULL,
                                      ixn_prior_width = .15,
                                      algorithm = 'variational',
@@ -728,6 +743,7 @@ model_proteins_separately = function(count_path,
                                   min_n_nz = min_n_nz,
                                   min_frac_nz = min_frac_nz,
                                   save_outputs = TRUE,
+                                  id_order = id_order,
                                   verbose = verbose)
 
   if (verbose) message("Step 4/8 Writing out data split by protein...")
