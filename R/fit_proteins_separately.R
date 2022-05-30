@@ -529,7 +529,7 @@ fit_models = function (algorithm = algorithm,
                                                             iter_warmup     = iter_warmup,
                                                             out_dir         = out_dir);
                                 p()
-                                return(fit_res)}
+                                return(fit_res)},
                                 .options = furrr_options(seed = seed,
                                                          scheduling = FALSE))
 
