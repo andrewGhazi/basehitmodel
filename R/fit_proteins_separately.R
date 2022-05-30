@@ -349,13 +349,13 @@ identify_bead_binders = function(wr_pre, prot_to_bc,
   return(high_bead_binding)
 }
 
-get_concordance = function(bh_input,
+get_concordance = function(bh_input, id_order = c('strain', 'repl', 'plate'),
                            drop_multirun_strains = TRUE) {
 
   s_id = bh_input[,.(sample_id)] %>%
     unique %>%
     tidyr::separate(sample_id,
-             into = c('strain_ex', 'repl', 'plt'),
+             into = id_order,
              sep = '-',
              remove = FALSE) %>%
     dplyr::select(sample_id, repl)
@@ -516,21 +516,22 @@ fit_models = function (algorithm = algorithm,
   protein_model = cmdstan_model(stan_file = model_path, quiet = TRUE)
   # compile it once at first so the first iterations of the future_map don't try to all compile it together
 
+  p = progressr::progressor(along = proteins)
   summaries = furrr::future_map(.x = proteins,
-                                .f = fit_safely,
-                                split_data_dir = split_data_dir,
-                                save_fits = save_fits,
-                                save_summaries = save_summaries,
-                                ixn_prior_width = ixn_prior_width,
-                                # bh_input = bh_input,
-                                proteins = proteins,
-                                algorithm = algorithm,
-                                iter_sampling = iter_sampling,
-                                iter_warmup = iter_warmup,
-                                out_dir = out_dir,
+                                .f = ~{fit_res = fit_safely(.x,
+                                                            split_data_dir  = split_data_dir,
+                                                            save_fits       = save_fits,
+                                                            save_summaries  = save_summaries,
+                                                            ixn_prior_width = ixn_prior_width,
+                                                            proteins        = proteins,
+                                                            algorithm       = algorithm,
+                                                            iter_sampling   = iter_sampling,
+                                                            iter_warmup     = iter_warmup,
+                                                            out_dir         = out_dir);
+                                p()
+                                return(fit_res)}
                                 .options = furrr_options(seed = seed,
-                                                         scheduling = FALSE),
-                                .progress = TRUE)
+                                                         scheduling = FALSE))
 
   res = data.table(protein = proteins,
                    summary = summaries)

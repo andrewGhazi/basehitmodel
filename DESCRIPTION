@@ -27,5 +27,6 @@ Imports:
     rlang,
     stats,
     utils,
-    readr
+    readr,
+    progressr
 RoxygenNote: 7.1.1
