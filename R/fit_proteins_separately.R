@@ -518,18 +518,16 @@ fit_models = function (algorithm = algorithm,
 
   p = progressr::progressor(along = proteins)
   summaries = furrr::future_map(.x = proteins,
-                                .f = ~{fit_res = fit_safely(.x,
-                                                            split_data_dir  = split_data_dir,
-                                                            save_fits       = save_fits,
-                                                            save_summaries  = save_summaries,
-                                                            ixn_prior_width = ixn_prior_width,
-                                                            proteins        = proteins,
-                                                            algorithm       = algorithm,
-                                                            iter_sampling   = iter_sampling,
-                                                            iter_warmup     = iter_warmup,
-                                                            out_dir         = out_dir);
-                                p()
-                                return(fit_res)},
+                                .f = fit_safely,
+                                split_data_dir  = split_data_dir,
+                                save_fits       = save_fits,
+                                save_summaries  = save_summaries,
+                                ixn_prior_width = ixn_prior_width,
+                                proteins        = proteins,
+                                algorithm       = algorithm,
+                                iter_sampling   = iter_sampling,
+                                iter_warmup     = iter_warmup,
+                                out_dir         = out_dir,
                                 .options = furrr_options(seed = seed,
                                                          scheduling = FALSE))
 
