@@ -39,7 +39,7 @@ read_pre = function(count_file, prot_to_bc) {
   tall_pre = filter_melt_join(pattern = "[Pp]re", inv = FALSE,
                               res = res, prot_to_bc = prot_to_bc)
 
-  if (dplyr::n_distinct(tall_pre$sample_id)) {
+  if (dplyr::n_distinct(tall_pre$sample_id) > 1) {
     message(paste0("* Detected multiple pre samples in run ", res$run_id[1], ". Summing over pre-samples within run."))
 
     tall_pre = tall_pre[,.(protein = protein[1], # Just keep the first instance of the other identifiers.
