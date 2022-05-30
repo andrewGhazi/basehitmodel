@@ -563,7 +563,7 @@ get_summary = function(fit_summaries, bead_binders, concordance_scores,
        file = file.path(out_dir, "errored_proteins.RData"))
 
   eval_error_string = paste0("* ", nrow(worked), ' out of ', nrow(fit_summaries),
-                             " (", round(100*nrow(worked)/nrow(fit_summaries), digits = 2), '%) protein fits ran without error. They are listed in errored_proteins.RData')
+                             " (", round(100*nrow(worked)/nrow(fit_summaries), digits = 2), '%) protein fits ran without error. Those that failed are listed in errored_proteins.RData')
   warning_file = file.path(out_dir, "warnings.txt")
 
   readr::write_lines(x = eval_error_string,
