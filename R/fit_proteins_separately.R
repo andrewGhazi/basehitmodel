@@ -769,7 +769,7 @@ model_proteins_separately = function(count_path,
 
   if (verbose) message("Step 6/8 Computing concordance scores...")
   concordance = get_concordance(filtered_data$bh_input,
-                                drop_multirun_strains = TRUE)
+                                drop_multirun_strains = TRUE, id_order = id_order)
 
   if (verbose) message("Step 7/8 Fitting model by protein...")
   model_fits = fit_models(algorithm = algorithm,
