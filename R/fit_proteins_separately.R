@@ -1,6 +1,9 @@
 # Huge, multi-run data require different pre-processing and fitting the model
 # one protein at a time.
 
+# If you're looking to understand how this code works, you'll likely want to start at
+# model_proteins_separately() (which should be near the bottom).
+
 #' Stats function to calculate the probability of a type S error from a set of
 #' posterior samples
 p_type_s = function(x){
@@ -100,9 +103,23 @@ read_multirun = function(count_path,
                          out_dir = NULL,
                          verbose = TRUE) {
 
-  if (!missing(cache_dir) && file.exists(file.path(cache_dir, 'count_list.RData'))) {
+  needed_files = file.path(cache_dir, paste0(c("pre", "wr_pre", "beads", "wr_output", "prot_to_bc"),
+                                             ".tsv.gz"))
+  if (!missing(cache_dir) && all(file.exists(needed_files))) {
     if (verbose) message("* loading cached count data")
-    load(file.path(cache_dir, 'count_list.RData'))
+    # load(file.path(cache_dir, 'count_list.RData'))
+    count_list = lapply(needed_files,
+                        function(.x) {
+                          if (grepl("prot_to_bc", .x)){
+                            col_class = NULL
+                          } else {
+                            col_class = c("run_id" = "character")
+                          };
+                          return(fread(.x, colClasses = col_class))})
+
+
+    names(count_list) = c("pre", "wr_pre", "beads", "wr_output", "prot_to_bc")
+
     return(count_list)
   }
 
@@ -148,8 +165,15 @@ read_multirun = function(count_path,
                     prot_to_bc = prot_to_bc)
 
   if (!missing(cache_dir)) {
-    save(count_list,
-         file = file.path(cache_dir, 'count_list.RData'))
+    if (verbose) message("* Saving counts to cache directory... ")
+
+    purrr::imap(count_list,
+                function(.x, .y) {
+                  data.table::fwrite(.x, file = file.path(cache_dir, paste0(.y, ".tsv.gz")),
+                                     sep = "\t",
+                                     compress = "gzip")
+                  return(NULL)
+                  })
   }
 
   return(count_list)
