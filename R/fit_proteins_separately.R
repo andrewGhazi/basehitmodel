@@ -202,10 +202,16 @@ filter_multirun = function(count_list,
       dir.create(cache_dir)
     }
 
-    if (file.exists(file.path(cache_dir, 'model_inputs.RData'))) {
+    needed_files = c(file.path(cache_dir, "bh_input.tsv.gz"),
+                     file.path(cache_dir, "bh_eta.tsv.gz"))
+    if (all(file.exists(needed_files))) {
       message(paste0("* Loading cached model inputs from ", cache_dir,
                      " . Delete those and re-run if that's not what you want to use."))
-      load(file.path(cache_dir, 'model_inputs.RData'))
+      # load(file.path(cache_dir, 'model_inputs.RData'))
+      bh_input = fread(needed_files[1],
+                       colClasses = c("run_id" = "character"))
+      bh_eta = fread(needed_files[2],
+                     colClasses = c("run_id" = "character"))
       return(list(bh_input = bh_input, bh_eta = bh_eta))
     }
   }
@@ -234,6 +240,7 @@ filter_multirun = function(count_list,
     unique
 
   # n_nz = "number non-zero"
+  if (verbose) message("* Identifying protein:strain combinations with enough outputs.")
   bh_n_nz = samp_strain_df[count_list$wr_output, on = 'sample_id'] %>%
     .[, .(n_obs = .N,
           n_nz = sum(count != 0),
@@ -292,17 +299,28 @@ filter_multirun = function(count_list,
                             p_i = as.integer(protein),
                             ps_i = as.integer(ps))]
 
-  bh_input$eta_i = as.integer(factor(paste(bh_input$pre_count, bh_input$strain, bh_input$protein,
-                                           sep = ':')))
+  # bh_input$eta_i = as.integer(factor(paste(bh_input$pre_count, bh_input$strain, bh_input$protein,
+  #                                          sep = ':')))
+  if (verbose) message("Identifying unique pre_count:strain:protein combinations")
+  bh_input[, eta_i := .GRP, by = c("pre_count", "strain", "protein")] # .GRP = 3.1x as fast
 
   # These are the unique levels of eta in the negative binomial regression. We pass them to the stan
   # model so that each only has to be computed once as a way to reduce redundancy in the computation.
   bh_eta = unique(bh_input[,.(pre_count, strain, sd, protein, p_i, s_i, ps_i, eta_i)])
 
   if (save_outputs) {
-    if (verbose) message(paste0("* Saving filtered inputs to: ", file.path(cache_dir, 'model_inputs.RData')))
-    save(bh_input, bh_eta,
-         file = file.path(cache_dir, 'model_inputs.RData'))
+    if (verbose) message(paste0("* Saving filtered inputs to: ", file.path(cache_dir, 'bh_input.tsv.gz'), " and bh_eta.tsv.gz"))
+
+    fwrite(bh_input,
+           file = file.path(cache_dir, "bh_input.tsv.gz"),
+           compress = "gzip",
+           sep = "\t")
+    fwrite(bh_eta,
+           file = file.path(cache_dir, "bh_eta.tsv.gz"),
+           compress = "gzip",
+           sep = "\t")
+    # save(bh_input, bh_eta,
+    #      file = file.path(cache_dir, 'model_inputs.RData'))
   }
 
   return(list(bh_input = bh_input,
