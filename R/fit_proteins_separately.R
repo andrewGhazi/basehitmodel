@@ -207,7 +207,6 @@ filter_multirun = function(count_list,
     if (all(file.exists(needed_files))) {
       message(paste0("* Loading cached model inputs from ", cache_dir,
                      " . Delete those and re-run if that's not what you want to use."))
-      # load(file.path(cache_dir, 'model_inputs.RData'))
       bh_input = fread(needed_files[1],
                        colClasses = c("run_id" = "character"))
       bh_eta = fread(needed_files[2],
@@ -224,7 +223,7 @@ filter_multirun = function(count_list,
   sample_id_df = unique(prot_samp_df[,.(sample_id)]) %>%
     separate(sample_id,
              into = id_order,
-             sep = '-',
+             sep = '-', # IDs MUST be separated by dashes! Make this a more complex regex if the format changes again.
              remove = FALSE) %>%
     mutate(across(.fns = as.factor))
 
@@ -299,8 +298,6 @@ filter_multirun = function(count_list,
                             p_i = as.integer(protein),
                             ps_i = as.integer(ps))]
 
-  # bh_input$eta_i = as.integer(factor(paste(bh_input$pre_count, bh_input$strain, bh_input$protein,
-  #                                          sep = ':')))
   if (verbose) message("Identifying unique pre_count:strain:protein combinations")
   bh_input[, eta_i := .GRP, by = c("pre_count", "strain", "protein")] # .GRP = 3.1x as fast
 
@@ -319,8 +316,6 @@ filter_multirun = function(count_list,
            file = file.path(cache_dir, "bh_eta.tsv.gz"),
            compress = "gzip",
            sep = "\t")
-    # save(bh_input, bh_eta,
-    #      file = file.path(cache_dir, 'model_inputs.RData'))
   }
 
   return(list(bh_input = bh_input,
