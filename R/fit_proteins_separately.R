@@ -167,6 +167,11 @@ read_multirun = function(count_path,
   if (!missing(cache_dir)) {
     if (verbose) message("* Saving counts to cache directory... ")
 
+    if (!dir.exists(cache_dir)) {
+      if (verbose) message("* Cache directory doesn't exist. Creating it...")
+      dir.create(cache_dir)
+    }
+
     purrr::imap(count_list,
                 function(.x, .y) {
                   data.table::fwrite(.x, file = file.path(cache_dir, paste0(.y, ".tsv.gz")),
@@ -565,8 +570,8 @@ fit_models = function (algorithm = algorithm,
                                 iter_sampling   = iter_sampling,
                                 iter_warmup     = iter_warmup,
                                 out_dir         = out_dir,
-                                .options = furrr_options(seed = seed,
-                                                         scheduling = FALSE))
+                                .options = furrr::furrr_options(seed = seed,
+                                                                scheduling = FALSE))
 
   res = data.table(protein = proteins,
                    summary = summaries)
