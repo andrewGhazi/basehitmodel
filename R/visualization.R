@@ -245,7 +245,9 @@ multi_hit_calling_plot = function(ixns = c("CD55:AIEC", "CEACAM1:AIEC", "CD7:AIE
 #' @param strains  a character vector of strains to filter to
 #' @param force if TRUE, override the check preventing gigantic plots
 #' @param log10_counts if TRUE, log10 the values in both panels
-#' @details Grey cells in the top panel correspond to zeros in the original input (if log10_counts = TRUE).
+#' @details Grey cells in the top panel correspond to zeros in the original input (if log10_counts =
+#'   TRUE). Empty cells (i.e. where you can see the underlying grid lines) are non-present in the
+#'   input, likely due to being filtered out.
 #' @examples
 #' \dontrun{
 #' bh_input = data.table::fread("~/Desktop/tmp/cache/bh_input.tsv.gz")

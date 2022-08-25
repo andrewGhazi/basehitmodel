@@ -30,7 +30,9 @@ plot_model_inputs(
 Plot barcode level model inputs
 }
 \details{
-Grey cells in the top panel correspond to zeros in the original input (if log10_counts = TRUE).
+Grey cells in the top panel correspond to zeros in the original input (if log10_counts =
+  TRUE). Empty cells (i.e. where you can see the underlying grid lines) are non-present in the
+  input, likely due to being filtered out.
 }
 \examples{
 \dontrun{
