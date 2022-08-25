@@ -276,8 +276,10 @@ plot_model_inputs = function(bh_input,
 
   pre_plot = plot_input |>
     ggplot(aes(barcode, sample_id)) +
-    geom_tile(aes(fill = pre_count)) +
+    geom_tile(aes(fill  = pre_count,
+                  color = pre_count)) +
     scale_fill_viridis_c(option = "E") +
+    scale_color_viridis_c(option = "E") +
     coord_cartesian(expand = FALSE) +
     theme_light() +
     theme(axis.text.x = element_blank(),
@@ -287,8 +289,10 @@ plot_model_inputs = function(bh_input,
 
   out_plot = plot_input |>
     ggplot(aes(barcode, sample_id)) +
-    geom_tile(aes(fill = normalized_output)) +
+    geom_tile(aes(fill = normalized_output,
+                  color = normalized_output)) +
     scale_fill_viridis_c(option = "D") +
+    scale_color_viridis_c(option = "D") +
     coord_cartesian(expand = FALSE) +
     theme_light() +
     theme(axis.text.x = element_text(vjust  = .5,
