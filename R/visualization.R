@@ -236,3 +236,67 @@ multi_hit_calling_plot = function(ixns = c("CD55:AIEC", "CEACAM1:AIEC", "CD7:AIE
                    ab = both_plot)
   return(plot_list)
 }
+
+#' Plot barcode level model inputs
+#'
+#' @param bh_input a data frame of filtered model inputs
+#' @param barcodes a character vector of barcodes to filter to
+#' @param proteins a character vector of proteins to filter to
+#' @param strains  a character vector of strains to filter to
+#' @param force if TRUE, override the check preventing gigantic plots
+#' @param log10_counts if TRUE, log10 the values in both panels
+#' @details Grey cells in the top panel correspond to zeros in the original input (if log10_counts = TRUE).
+#' @examples
+#' \dontrun{
+#' bh_input = data.table::fread("~/Desktop/tmp/cache/bh_input.tsv.gz")
+#' plot_model_inputs(bh_input,
+#'                   strains = c("AB1", "AB10", "AB12"),
+#'                   proteins = c("LSAMP", "THSD1_Epitope-1", "LRTM1"))
+#' }
+#' @export
+plot_model_inputs = function(bh_input,
+                             barcodes = NULL,
+                             proteins = NULL,
+                             strains  = NULL,
+                             force = FALSE,
+                             log10_counts = TRUE) {
+
+  if (!data.table::is.data.table(bh_input)) bh_input = data.table::as.data.table(bh_input)
+  if (!is.null(barcodes)) bh_input = bh_input[barcode %in% barcodes]
+  if (!is.null(proteins)) bh_input = bh_input[protein %in% proteins]
+  if (!is.null( strains)) bh_input = bh_input[strain  %in%  strains]
+
+  if (nrow(bh_input) > 5000 && !force) stop("Too many count observations to plot. Set force = TRUE to override.")
+
+  if (log10_counts) trans_fun = log10 else trans_fun = identity
+
+  plot_input = bh_input |>
+    dplyr::mutate(normalized_output = trans_fun(count / pre_count),
+                  pre_count = trans_fun(pre_count))
+
+  pre_plot = plot_input |>
+    ggplot(aes(barcode, sample_id)) +
+    geom_tile(aes(fill = pre_count)) +
+    scale_fill_viridis_c(option = "E") +
+    coord_cartesian(expand = FALSE) +
+    theme_light() +
+    theme(axis.text.x = element_blank(),
+          axis.title.x = element_blank(),
+          panel.border = element_blank(),
+          axis.title.y = element_blank())
+
+  out_plot = plot_input |>
+    ggplot(aes(barcode, sample_id)) +
+    geom_tile(aes(fill = normalized_output)) +
+    scale_fill_viridis_c(option = "D") +
+    coord_cartesian(expand = FALSE) +
+    theme_light() +
+    theme(axis.text.x = element_text(vjust  = .5,
+                                     angle  = 90,
+                                     family = "mono"),
+          axis.title.x = element_blank(),
+          panel.border = element_blank(),
+          axis.title.y = element_blank())
+
+  out_plot / pre_plot + patchwork::plot_layout(heights = c(6, 1), guides = 'collect')
+}

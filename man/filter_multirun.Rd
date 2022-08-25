@@ -13,6 +13,7 @@ filter_multirun(
   min_n_nz = 3,
   min_frac_nz = 0.5,
   drop_multirun_strains = TRUE,
+  id_order = c("strain", "repl", "plate"),
   verbose = TRUE
 )
 }

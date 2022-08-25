@@ -8,6 +8,7 @@ model_proteins_separately(
   count_path,
   out_dir = "outputs/bh_out/",
   cache_dir = "outputs/bh_cache/",
+  id_order = c("strain", "repl", "plate"),
   split_data_dir = NULL,
   ixn_prior_width = 0.15,
   algorithm = "variational",
@@ -34,6 +35,8 @@ model_proteins_separately(
 
 \item{cache_dir}{path to use a cache directory (will be created if
 non-existent)}
+
+\item{id_order}{character vector giving the order of dash separated identifiers in the sample_id column}
 
 \item{split_data_dir}{path to a directory for data split by protein (will be
 created if non-existent)}
