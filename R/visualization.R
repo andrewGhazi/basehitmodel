@@ -278,12 +278,15 @@ plot_model_inputs = function(bh_input,
     ggplot(aes(barcode, sample_id)) +
     geom_tile(aes(fill  = pre_count,
                   color = pre_count)) +
+    facet_wrap(vars(protein), nrow = 1,
+               scales = 'free_x') +
     scale_fill_viridis_c(option = "E") +
     scale_color_viridis_c(option = "E") +
     coord_cartesian(expand = FALSE) +
-    theme_light() +
-    theme(axis.text.x = element_blank(),
+    theme_bw() +
+    theme(axis.text.x  = element_blank(),
           axis.title.x = element_blank(),
+          axis.ticks.x = element_blank(),
           panel.border = element_blank(),
           axis.title.y = element_blank())
 
@@ -291,10 +294,12 @@ plot_model_inputs = function(bh_input,
     ggplot(aes(barcode, sample_id)) +
     geom_tile(aes(fill = normalized_output,
                   color = normalized_output)) +
+    facet_wrap(vars(protein), nrow = 1,
+               scales = "free_x") +
     scale_fill_viridis_c(option = "D") +
     scale_color_viridis_c(option = "D") +
     coord_cartesian(expand = FALSE) +
-    theme_light() +
+    theme_bw() +
     theme(axis.text.x = element_text(vjust  = .5,
                                      angle  = 90,
                                      family = "mono"),
