@@ -39,10 +39,14 @@ read_pre = function(count_file, prot_to_bc) {
 
   res$run_id = stringr::str_extract(basename(count_file), '[0-9]+')
 
-  tall_pre = filter_melt_join(pattern = "[Pp]re", inv = FALSE,
+  tall_pre = filter_melt_join(pattern = "[Pp][Rr][Ee]", inv = FALSE,
                               res = res, prot_to_bc = prot_to_bc)
 
   if (dplyr::n_distinct(tall_pre$sample_id) > 1) {
+    # If there are multiple pre samples in a run, just sum them. Strictly speaking it would be
+    # better to use the measurements separately and integrate over the uncertainty, but that adds a
+    # lot of model complexity for practically no inferential gain.
+
     message(paste0("* Detected multiple pre samples in run ", res$run_id[1], ". Summing over pre-samples within run."))
 
     tall_pre = tall_pre[,.(protein = protein[1], # Just keep the first instance of the other identifiers.
@@ -69,7 +73,7 @@ read_outputs_one = function(count_file, prot_to_bc, bh_wr_input) {
   run_wr = bh_wr_input[run_id == run_i]
   select_cols = c('sample_id', 'run_id', run_wr$barcode)
 
-  patterns = c('[Bb]eads', '[Pp]re|[Bb]eads')
+  patterns = c('[Bb][Ee][Aa][Dd][Ss]', '[Pp][Rr][Ee]|[Bb][Ee][Aa][Dd][Ss]')
   inv = c(FALSE, TRUE)
 
   # Produce a list of two dataframes for beads and outputs.
@@ -105,6 +109,7 @@ read_multirun = function(count_path,
 
   needed_files = file.path(cache_dir, paste0(c("pre", "wr_pre", "beads", "wr_output", "prot_to_bc"),
                                              ".tsv.gz"))
+
   if (!missing(cache_dir) && all(file.exists(needed_files))) {
     if (verbose) message("* loading cached count data")
     # load(file.path(cache_dir, 'count_list.RData'))
