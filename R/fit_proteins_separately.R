@@ -563,7 +563,10 @@ fit_models = function (algorithm = algorithm,
   protein_model = cmdstan_model(stan_file = model_path, quiet = TRUE)
   # compile it once at first so the first iterations of the future_map don't try to all compile it together
 
-  p = progressr::progressor(along = proteins)
+  # p = progressr::progressor(along = proteins)
+  # Using progressr here makes it ~8x slower for some reason. TODO: figure out why.
+  # ^ Tried using an anonymous function, maybe a separate function that takes a progressor as an
+  # argument will work?
   summaries = furrr::future_map(.x = proteins,
                                 .f = fit_safely,
                                 split_data_dir  = split_data_dir,
