@@ -321,6 +321,7 @@ hit_calling_venn = function(score_df,
                             score_threshold = .5,
                             concordance_threshold = .75,
                             interval_width = .95) {
+  score_df = as.data.table(score_df)
   interval_outer = 1 - interval_width
 
   interval_ends = (c(interval_outer/2, 1-interval_outer/2) * 100) |>
