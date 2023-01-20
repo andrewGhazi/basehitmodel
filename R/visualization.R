@@ -311,3 +311,71 @@ plot_model_inputs = function(bh_input,
 
   out_plot / pre_plot + patchwork::plot_layout(heights = c(6, 1), guides = 'collect')
 }
+
+#' Venn diagram of hit-calling thresholds
+#'
+#' @description This function draws a Venn diagram of the counts of interactions that pass the three
+#'   hit-calling criteria for the provided thresholds.
+#' @export
+hit_calling_venn = function(score_df,
+                            score_threshold = .5,
+                            concordance_threshold = .75,
+                            interval_width = .95) {
+  interval_outer = 1 - interval_width
+
+  interval_ends = (c(interval_outer/2, 1-interval_outer/2) * 100) |>
+    as.character() |>
+    paste('%', sep = '')
+
+  if (!all(interval_ends %in% names(score_df))) {
+    stop("score_df doesn't contain the interval endpoints for the given interval_width")
+  }
+
+  N = nrow(score_df)
+
+  circle = function(cx,cy) {
+    data.table(x = cx + cos(seq(0, 2*pi, length.out = 300)),
+               y = cy + sin(seq(0, 2*pi, length.out = 300)))
+  }
+
+  a = 1
+  h = sqrt(3)/2*a
+
+  circle_df = data.table(cx = c(    0, -a/2,  a/2),
+                         cy = c(2*h/3, -h/3, -h/3),
+                         id = 1:3) |>
+    dplyr::mutate(point_df = purrr::map2(cx,cy,
+                                         circle)) |>
+    tidyr::unnest_legacy()
+
+  call_df = score_df |>
+    dplyr::transmute(passes_interval = !(score_df[[interval_ends[1]]] < 0 & score_df[[interval_ends[2]]] > 0),
+                     passes_size = ixn_score > score_threshold,
+                     passes_concordance = concordance > concordance_threshold)
+
+  call_dt = table(call_df) |>
+    as.data.table() |>
+    arrange(passes_interval, passes_size, passes_concordance) |>
+    mutate(x = c(-1.4, 1, -1, 0,
+                 0, .6, -.6, 0),
+           y = c(1.2, -.4, -.4, -.7,
+                 1, .4, .4, 0))
+
+  lab_df = data.table(label = c("passes\ninterval",
+                                "passes\nsize",
+                                "passes\nconcordance"),
+                      x = c(1.3, -1.9, 1.9),
+                      y = c(1.3, -.9, -.9))
+
+  ggplot(lab_df, aes(x,y)) +
+    geom_path(data = circle_df,
+              aes(group = id)) +
+    geom_text(data = call_dt,
+              aes(label = N)) +
+    geom_text(data = lab_df,
+              aes(label = label)) +
+    coord_equal() +
+    theme_void() +
+    xlim(-2.5,2.5) +
+    ylim(-1.5, 2)
+}
