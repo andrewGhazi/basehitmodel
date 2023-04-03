@@ -277,7 +277,7 @@ plot_model_inputs = function(bh_input,
                   pre_count = trans_fun(pre_count))
 
   pre_plot = plot_input |>
-    ggplot(aes(barcode, sample_id)) +
+    ggplot(aes(barcode, strain)) +
     geom_tile(aes(fill  = pre_count,
                   color = pre_count)) +
     facet_wrap(vars(protein), nrow = 1,
@@ -309,7 +309,7 @@ plot_model_inputs = function(bh_input,
           panel.border = element_blank(),
           axis.title.y = element_blank())
 
-  out_plot / pre_plot + patchwork::plot_layout(heights = c(6, 1), guides = 'collect')
+  out_plot / pre_plot + patchwork::plot_layout(heights = c(4.5, 1), guides = 'collect')
 }
 
 #' Venn diagram of hit-calling thresholds
