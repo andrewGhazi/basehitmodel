@@ -309,7 +309,7 @@ plot_model_inputs = function(bh_input,
           panel.border = element_blank(),
           axis.title.y = element_blank())
 
-  out_plot / pre_plot + patchwork::plot_layout(heights = c(4.5, 1), guides = 'collect')
+  pre_plot / out_plot + patchwork::plot_layout(heights = c(1, 4.5), guides = 'collect')
 }
 
 #' Venn diagram of hit-calling thresholds
