@@ -39,6 +39,8 @@ read_pre = function(count_file, prot_to_bc) {
 
   res$run_id = stringr::str_extract(basename(count_file), '[0-9]+')
 
+  if (is.na(res$run_id[1])) stop(paste0("Couldn't find a run ID number in the file name of input file:\n\n", count_file, "\n\n"))
+
   tall_pre = filter_melt_join(pattern = "[Pp][Rr][Ee]", inv = FALSE,
                               res = res, prot_to_bc = prot_to_bc)
 
