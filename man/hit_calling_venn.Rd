@@ -11,6 +11,15 @@ hit_calling_venn(
   interval_width = 0.95
 )
 }
+\arguments{
+\item{score_df}{a dataframe of basehit scores from model_proteins_separately()}
+
+\item{score_threshold}{exclude ixns with scores below this value}
+
+\item{concordance_threshold}{exclude ixns with concordance values below this threshold}
+
+\item{interval_width}{exclude ixns where a credible interval of this proportion includes 0}
+}
 \description{
 This function draws a Venn diagram of the counts of interactions that pass the three
   hit-calling criteria for the provided thresholds.

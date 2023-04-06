@@ -316,6 +316,10 @@ plot_model_inputs = function(bh_input,
 #'
 #' @description This function draws a Venn diagram of the counts of interactions that pass the three
 #'   hit-calling criteria for the provided thresholds.
+#' @param score_df a dataframe of basehit scores from model_proteins_separately()
+#' @param score_threshold exclude ixns with scores below this value
+#' @param concordance_threshold exclude ixns with concordance values below this threshold
+#' @param interval_width exclude ixns where a credible interval of this proportion includes 0
 #' @export
 hit_calling_venn = function(score_df,
                             score_threshold = .5,
@@ -329,7 +333,7 @@ hit_calling_venn = function(score_df,
     paste('%', sep = '')
 
   if (!all(interval_ends %in% names(score_df))) {
-    stop("score_df doesn't contain the interval endpoints for the given interval_width")
+    stop(paste0("score_df doesn't contain the interval endpoints ", paste(interval_ends, collapse = " & "), " needed for the given interval_width. (You can't use arbitrary intervals, you have to work with the interval ends that are available in score_df.)"))
   }
 
   N = nrow(score_df)
