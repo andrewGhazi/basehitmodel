@@ -237,7 +237,8 @@ filter_multirun = function(count_list,
              into = id_order,
              sep = '-', # IDs MUST be separated by dashes! Make this a more complex regex if the format changes again.
              remove = FALSE) %>%
-    mutate(across(.fns = as.factor))
+    mutate(across(.cols = tidyselect::everything(),
+                  .fns = as.factor))
 
   id_df = sample_id_df[prot_samp_df, on = 'sample_id'] %>%
     mutate(across(.fns = as.factor))
