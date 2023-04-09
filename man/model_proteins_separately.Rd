@@ -33,44 +33,42 @@ model_proteins_separately(
 \arguments{
 \item{count_path}{path to a directory of mapped_bcs.csv files}
 
-\item{cache_dir}{path to use a cache directory (will be created if
+\item{cache_dir}{path to use a cache directory (will be created if non-existent)}
+
+\item{id_order}{character vector giving the order of dash separated identifiers in the sample_id
+column}
+
+\item{split_data_dir}{path to a directory for data split by protein (will be created if
 non-existent)}
 
-\item{id_order}{character vector giving the order of dash separated identifiers in the sample_id column}
+\item{ixn_prior_width}{standard deviation of zero-centered normal prior on interaction effects}
 
-\item{split_data_dir}{path to a directory for data split by protein (will be
-created if non-existent)}
-
-\item{ixn_prior_width}{standard deviation of zero-centered normal prior on
-interaction effects}
-
-\item{algorithm}{stan algorithm to use for posterior evaluation. Any setting
-other than "variational" uses Stan's adaptive HMC sampler.}
+\item{algorithm}{stan algorithm to use for posterior evaluation. Any setting other than
+"variational" uses Stan's adaptive HMC sampler.}
 
 \item{iter_sampling}{number of post-warmup samples to draw per chain}
 
 \item{iter_warmup}{number of warmup samples to draw per chain}
 
-\item{save_split}{logical indicating whether to keep the split data directory
-intact}
+\item{save_split}{logical indicating whether to keep the split data directory intact}
 
-\item{save_fits}{logical indicating whether to save the posterior fit objects
-(will use a lot more space if TRUE)}
+\item{save_fits}{logical indicating whether to save the posterior fit objects (will use a lot
+more space if TRUE)}
 
-\item{bead_binding_threshold}{proteins with enrichment in the beads above
-this threshold get noted in the output}
+\item{bead_binding_threshold}{proteins with enrichment in the beads above this threshold get
+noted in the output}
 
-\item{save_bead_binders}{logical indicating whether to save information on
-bead binders to a separate file}
+\item{save_bead_binders}{logical indicating whether to save information on bead binders to a
+separate file}
 
-\item{pre_count_threshold}{barcodes with counts at or below this value in the
-Pre ("input") sample are dropped.}
+\item{pre_count_threshold}{barcodes with counts at or below this value in the Pre ("input")
+sample are dropped.}
 
-\item{min_n_nz}{minimum number of non-zero counts required for an interaction
-to not be entirely discarded}
+\item{min_n_nz}{minimum number of non-zero counts required for an interaction to not be entirely
+discarded}
 
-\item{min_frac_nz}{minimum proportion of non-zero counts required for an
-interaction to not be entirely discarded}
+\item{min_frac_nz}{minimum proportion of non-zero counts required for an interaction to not be
+entirely discarded}
 
 \item{weak_score_threshold}{lower threshold of interaction score to call weak hits}
 
@@ -78,20 +76,27 @@ interaction to not be entirely discarded}
 
 \item{weak_concordance_threshold}{lower threshold of interaction concordance to call weak hits}
 
-\item{strong_concordance_threshold}{lower threshold of interaction concordance to call strong hits}
+\item{strong_concordance_threshold}{lower threshold of interaction concordance to call strong
+hits}
 
-\item{verbose}{logical indicating whether to print informative progress
-messages}
+\item{verbose}{logical indicating whether to print informative progress messages}
 }
 \description{
 Run the basehit model one protein at a time
 }
 \details{
-The count file should have the first row specifying proteins, the
-  second specifying barcodes, and all others after that specifying the output
-  counts for each strain counts for each barcode (i.e. wide format, strain by
-  barcode).
+The count file should have the first row specifying proteins, the second specifying
+  barcodes, and all others after that specifying the output counts for each strain counts for
+  each barcode (i.e. wide format, strain by barcode).
 
-  Implemented with furrr, so run a call to plan() that's appropriate for your
-  system in order to parallelize.
+  There must be a unique number in the file name of each file in the input directory. This acts
+  as a necessary run identifier e.g. "Mapped_bcs1.csv" is run 1.
+
+  The sample_id column in the input MUST have three and only three components separated by
+  dashes. The default order of the three pieces is strain-repl-plate, but you can change the
+  order with the \code{id_order} argument if needed. If you need an additional separator for more
+  information in the strain part of the id, underscores are good.
+
+  Implemented with furrr, so run a call to plan() that's appropriate for your system in order to
+  parallelize.
 }
