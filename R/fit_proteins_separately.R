@@ -390,9 +390,7 @@ identify_bead_binders = function(wr_pre, prot_to_bc,
                                  out_dir,
                                  verbose = TRUE) {
   wr_pre = wr_pre %>% data.table::as.data.table()
-
   bh_beads = bh_beads %>% data.table::as.data.table()
-
   bh_output = bh_output %>% data.table::as.data.table()
   prot_to_bc = prot_to_bc %>% data.table::as.data.table()
 
