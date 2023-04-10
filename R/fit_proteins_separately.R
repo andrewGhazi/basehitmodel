@@ -18,9 +18,10 @@ melt_join = function(count_df, prot_to_bc) {
   melted = data.table::melt(count_df,
                             id.vars = c('sample_id', 'run_id'),
                             variable.name = 'barcode',
-                            value.name = 'count')
+                            value.name = 'count') %>%
+    data.table::as.data.table()
 
-  prot_to_bc[melted, on = 'barcode'][order(sample_id, protein)]
+  data.table::as.data.table(prot_to_bc)[melted, on = 'barcode'][order(sample_id, protein)]
 }
 
 #' melt_join either including or excluding a certain pattern
@@ -257,15 +258,17 @@ filter_multirun = function(count_list,
 
   # n_nz = "number non-zero"
   if (verbose) message("* Identifying protein:strain combinations with enough outputs.")
-  bh_n_nz = samp_strain_df[count_list$wr_output, on = 'sample_id'] %>%
+  bh_n_nz = samp_strain_df[data.table::as.data.table(count_list$wr_output), on = 'sample_id'] %>%
     .[, .(n_obs = .N,
           n_nz = sum(count != 0),
           p_nz = mean(count != 0),
           max_obs = max(count)),
-      by = .(strain, protein)]
+      by = .(strain, protein)] %>%
+    data.table::as.data.table()
 
   ps_df = id_df[, .(sample_id, strain, protein, ps)] %>%
-    unique
+    unique %>%
+    data.table::as.data.table()
 
   bh_wr_ixns = ps_df[bh_n_nz[n_nz >= min_n_nz | p_nz > min_frac_nz][,-c("n_obs", "max_obs")], on = .(strain, protein)]
   # ^ data frame of well represented interactions
@@ -276,7 +279,8 @@ filter_multirun = function(count_list,
   data.table::fwrite(bh_pr_ixns,
                      file = file.path(out_dir, "interactions_below_thresholds.csv"))
 
-  bh_wr_output = ps_df[count_list$wr_output, on = .(sample_id, protein)][ps %in% bh_wr_ixns$ps]
+  bh_wr_output = ps_df[data.table::as.data.table(count_list$wr_output), on = .(sample_id, protein)][ps %in% bh_wr_ixns$ps] %>%
+    data.table::as.data.table()
 
   bc_input_by_run = bh_pre[, bc_run := paste(barcode, run_id, sep = '_')][bc_run %in% bh_wr_input$wr_bc_runs] %>%
     .[,.(barcode, run_id, count)] %>%
@@ -385,6 +389,13 @@ identify_bead_binders = function(wr_pre, prot_to_bc,
                                  save_bead_binders,
                                  out_dir,
                                  verbose = TRUE) {
+  wr_pre = wr_pre %>% data.table::as.data.table()
+
+  bh_beads = bh_beads %>% data.table::as.data.table()
+
+  bh_output = bh_output %>% data.table::as.data.table()
+  prot_to_bc = prot_to_bc %>% data.table::as.data.table()
+
   beads_avg = wr_pre[,.(barcode, pre_count, run_id)][bh_beads, on = .(barcode, run_id)][pre_count > 4][,.(mean_bead_count = mean(count / pre_count)), by = barcode]
 
   adj_output = wr_pre[,.(barcode, pre_count, run_id)][bh_output, on = .(barcode, run_id)][pre_count > 4][, pre_adj_count := count / pre_count][, .(mean_prot_output = mean(pre_adj_count)), by = 'protein']
@@ -413,7 +424,8 @@ get_concordance = function(bh_input, id_order = c('strain', 'repl', 'plate'),
              into = id_order,
              sep = '-',
              remove = FALSE) %>%
-    dplyr::select(sample_id, repl)
+    dplyr::select(sample_id, repl) %>%
+    data.table::as.data.table()
 
   count_input = bh_input[,.(protein, strain, sample_id, sd, pre_count, count, run_id)]
 
@@ -421,7 +433,8 @@ get_concordance = function(bh_input, id_order = c('strain', 'repl', 'plate'),
     count_input = count_input[!(strain %in% c("AB9", 'AIEC', 'RG151') & (run_id != 1))]
   }
 
-  adj_counts = count_input[, adj_count := count / pre_count][]
+  adj_counts = count_input[, adj_count := count / pre_count][] %>%
+    data.table::as.data.table()
 
   concordance_scores = s_id[adj_counts, on = 'sample_id'] %>%
     .[,.(sum_adj = sum(adj_count)), by = .(protein, strain, repl)] %>%
@@ -463,11 +476,15 @@ fit_one_protein = function(protein,
 
   # p1 is the input data for ONE protein.
   # p1_eta are the corresponding unique etas.
-  p1 = split_data$p1
-  p1_eta = split_data$p1_eta
+  p1 = split_data$p1 %>%
+    data.table::as.data.table()
+
+  p1_eta = split_data$p1_eta %>%
+    data.table::as.data.table()
 
   eta_map = p1_eta[,.(eta_i,
-                      new_i = 1:nrow(p1_eta))]
+                      new_i = 1:nrow(p1_eta))] %>%
+    data.table::as.data.table()
 
   p1 = eta_map[p1, on = 'eta_i'] %>%
     select(-eta_i) %>%
@@ -534,7 +551,8 @@ fit_one_protein = function(protein,
   protein_summary = data.table::as.data.table(protein_summary)
   protein_summary[, s_i := as.numeric(stringr::str_extract(variable, '[0-9]+'))]
 
-  strain_i_df =  unique(p1[,.(strain, s_i)])
+  strain_i_df =  unique(p1[,.(strain, s_i)]) %>%
+    data.table::as.data.table()
 
   protein_summary = strain_i_df[protein_summary, on = 's_i']
 
@@ -637,12 +655,13 @@ get_summary = function(fit_summaries, bead_binders, concordance_scores,
 
   ixn_scores =   parameters[grepl('prot_str', variable)] %>%
     dplyr::select(protein, strain, ixn_score = mean, se, p_type_s, `0.25%`:`99.75%`) %>%
-    dplyr::arrange(desc(ixn_score))
+    dplyr::arrange(desc(ixn_score)) %>%
+    data.table::as.data.table()
 
   other_params = parameters[!grepl('prot_str', variable)] %>%
     dplyr::select(protein, strain, variable, posterior_mean = mean, se, p_type_s, `0.25%`:`99.75%`)
 
-  with_concord = concordance_scores[ixn_scores, on = .(protein, strain)]
+  with_concord = data.table::as.data.table(concordance_scores)[ixn_scores, on = .(protein, strain)]
 
   with_concord$note = c('', "This protein showed normalized bead output above the specified bead binding enrichment threshold (default 1)")[(with_concord$protein %in% bead_binders$protein) + 1]
 
