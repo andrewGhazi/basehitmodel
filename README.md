@@ -116,11 +116,14 @@ usually takes ~10x longer. Analyzing the full dataset
 - and 2000 warmup iterations and 2500 posterior draws
 
 took about 6 days (still only a fraction of the time required to design
-and run the assay!). To reproduce the estimates used in the paper,
-uncompress the 6 data files in `data-raw/` (not `demo/`) with
-`xz -dk *.xz`, set the parallelization in R
-`library(furrr); plan(multisession, workers = 12)` and use the following
-arguments to `model_proteins_separately()`:
+and run the assay!).
+
+## Reproduction instructions
+
+To reproduce the estimates used in the paper, uncompress the 6 data
+files in `data-raw/` (not `demo/`) with `xz -dk *.xz`, set the
+parallelization in R `library(furrr); plan(multisession, workers = 12)`
+and use the following arguments to `model_proteins_separately()`:
 `iter_sampling = 2500, iter_warmup = 2000, algorithm = 'mcmc', seed = 123`.
 This should reproduce the estimates to within Monte Carlo error.
 
