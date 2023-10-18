@@ -89,5 +89,5 @@ This package has been tested on R 4.1.0 and the following package versions (thou
 |readr     |2.1.2 |
 |progressr |0.10.0|
 
-Any OS that can install R and Stan should be sufficient. We have tested the package most thoroughly on CentOS Linux release 7.6.1810 (Core), as well as various recent versions of macOS and Windows 10.
+Any OS that can install R and Stan should be sufficient. We have tested the package most thoroughly on CentOS Linux release 7.6.1810 (Core), as well as various recent versions of macOS and Windows 10. No non-standard hardware is required.
 

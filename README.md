@@ -96,4 +96,5 @@ versions (though anything from ~2020 forwards *should* work):
 
 Any OS that can install R and Stan should be sufficient. We have tested
 the package most thoroughly on CentOS Linux release 7.6.1810 (Core), as
-well as various recent versions of macOS and Windows 10.
+well as various recent versions of macOS and Windows 10. No non-standard
+hardware is required.
