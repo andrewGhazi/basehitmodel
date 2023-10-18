@@ -51,3 +51,35 @@ model_proteins_separately(count_path = "~/basehit/data/BASEHIT_rescreen/",
                           verbose = TRUE,
                           seed = 1234)
 ```
+
+## Software Versions
+
+This package has been tested on R 4.1.0 and the following package
+versions (though anything from ~2020 forwards *should* work):
+
+| pkg        | ver    |
+|------------|--------|
+| dplyr      | 1.0.7  |
+| data.table | 1.14.2 |
+| magrittr   | 2.0.2  |
+| openxlsx   | 4.2.4  |
+| tibble     | 3.1.6  |
+| tidyr      | 1.2.0  |
+| cmdstanr   | 0.5.1  |
+| readxl     | 1.3.1  |
+| furrr      | 0.2.3  |
+| stringr    | 1.4.0  |
+| ggplot2    | 3.3.5  |
+| patchwork  | 1.1.1  |
+| forcats    | 0.5.1  |
+| purrr      | 0.3.4  |
+| posterior  | 1.2.0  |
+| rlang      | 1.0.0  |
+| stats      | 4.1.0  |
+| utils      | 4.1.0  |
+| readr      | 2.1.2  |
+| progressr  | 0.10.0 |
+
+Any OS that can install R and Stan should be sufficient. We have tested
+the package most thoroughly on CentOS Linux release 7.6.1810 (Core), as
+well as various recent versions of macOS and Windows 10.
