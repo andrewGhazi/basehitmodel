@@ -16,11 +16,25 @@ install_cmdstan(cores = 2)
 ```
 
 Note that C++ compilers are also required (`check_cmdstan_toolchain()`
-will check for this).
+will check for this). Installing `CmdStan` can take around ~5 minutes,
+depending on how fast your system can compile it. You can set
+`Sys.setenv(MAKEFLAGS = "-j4")` before the install command to make it
+compile in parallel if you wish.
 
-Then use `remotes::install_github("andrewGhazi/basehitmodel")` to
-install the remaining dependencies (listed in the DESCRIPTION file) and
-`basehitmodel` itself.
+Then use:
+
+``` r
+remotes::install_github("andrewGhazi/basehitmodel")
+```
+
+to install the remaining dependencies (listed in the DESCRIPTION file)
+and `basehitmodel` itself. You can add `Ncpus=3` to that command to make
+the dependency installation run in parallel, though you will probably
+need to restart your R session if you set the parallel makeflag above.
+
+Installing the R packages will take a ~20 seconds if your OS gets
+precompiled binaries from CRAN, otherwise it will be ~2-5 minutes on a
+normal laptop.
 
 ## Example
 
