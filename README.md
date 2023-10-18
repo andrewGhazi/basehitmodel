@@ -4,7 +4,23 @@
 This package requires
 [cmdstanr](https://mc-stan.org/cmdstanr/articles/cmdstanr.html), and so
 can’t go on CRAN (nor Bioc I think). Install `cmdstanr` first, then use
-`devtools::install_github("andrewGhazi/basehitmodel")`.
+it to install `CmdStan`:
+
+``` r
+install.packages("cmdstanr", repos = c("https://mc-stan.org/r-packages/",
+                                       getOption("repos")))
+
+library(cmdstanr)
+check_cmdstan_toolchain()
+install_cmdstan(cores = 2)
+```
+
+Note that C++ compilers are also required (`check_cmdstan_toolchain()`
+will check for this).
+
+Then use `remotes::install_github("andrewGhazi/basehitmodel")` to
+install the remaining dependencies (listed in the DESCRIPTION file) and
+`basehitmodel` itself.
 
 ## Example
 
