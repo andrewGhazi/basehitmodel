@@ -27,10 +27,11 @@ Then use:
 remotes::install_github("andrewGhazi/basehitmodel")
 ```
 
-to install the remaining dependencies (listed in the DESCRIPTION file)
-and `basehitmodel` itself. You can add `Ncpus=3` to that command to make
-the dependency installation run in parallel, though you will probably
-need to restart your R session if you set the parallel makeflag above.
+to install the remaining dependencies (listed in the `DESCRIPTION` file)
+and `basehitmodel` itself. You can add `Ncpus=3` to that install command
+to make the dependency installation run in parallel, though you will
+probably need to restart your R session if you set the parallel makeflag
+above.
 
 Installing the R packages will take a ~20 seconds if your OS gets
 precompiled binaries from CRAN, otherwise it will be ~2-5 minutes on a
@@ -39,37 +40,89 @@ normal laptop.
 ## Example
 
 Point `model_proteins_separately` to a directory of mapped basehit
-counts and it will fit the ZINB model per-protein and save the results
-in the specified output directory. An optional cache directory can be
-used to save the pre-processing steps so that future model runs with
-different statistical parameters (e.g. priors) faster. Help
-documentation on the other arguments can be displayed with
+counts (here I point it to the demo directory from this repo) and it
+will fit the ZINB model per-protein and save the results in the
+specified output directory (for this example I just tell it to output to
+a directory on my desktop). An optional cache directory can be used to
+save the pre-processing steps so that future model runs with different
+statistical parameters (e.g. priors) don’t have to re-run the initial QC
+steps. Help documentation on the other arguments can be displayed with
 `?model_proteins_separately`.
 
 ``` r
-model_proteins_separately(count_path = "~/basehit/data/BASEHIT_rescreen/",
-                          out_dir = "/path/to/out_dir/",
-                          cache_dir = "/path/to/outputs/bh_cache/",
-                          split_data_dir = "/path/to/outputs/splits/",
-                          ixn_prior_width = 0.15,
-                          algorithm = "variational",
-                          iter_sampling = 2000,
-                          iter_warmup = 1000,
-                          save_split = TRUE,
-                          save_fits = FALSE,
-                          save_summaries = TRUE,
-                          bead_binding_threshold = 1,
-                          save_bead_binders = TRUE,
-                          min_n_nz = 3,
-                          min_frac_nz = 0.5,
-                          verbose = TRUE,
-                          seed = 1234)
+res = model_proteins_separately(count_path = "~/basehitmodel/data-raw/demo",
+                                out_dir = "~/Desktop/basehit_tmp",
+                                cache_dir = "~/Desktop/basehit_tmp/cache",
+                                split_data_dir = "~/Desktop/basehit_tmp/splits/",
+                                ixn_prior_width = 0.15,
+                                algorithm = "variational",
+                                iter_sampling = 2000,
+                                iter_warmup = 1000,
+                                save_split = TRUE,
+                                save_fits = FALSE,
+                                save_summaries = TRUE,
+                                bead_binding_threshold = 1,
+                                save_bead_binders = TRUE,
+                                min_n_nz = 3,
+                                min_frac_nz = 0.5,
+                                verbose = TRUE,
+                                seed = 1234)
 ```
 
-## Software Versions
+Using the example data in `data-raw/demo` and this example command with
+variational inference and no parallelization, the full processing,
+modeling, and summarization pipeline took **5 minutes 25 seconds** on an
+i7-1370P (a modern laptop processor).
+
+The main function `model_proteins_separately()` returns a data frame
+with one row for each protein:strain pair that passed the QC steps. It
+has columns of scores, hit-calls, concordances, [type S error
+probabilities](https://statmodeling.stat.columbia.edu/2004/12/29/type_1_type_2_t/),
+several score quantiles, and a final column of notes that will indicate
+when a particular protein showed higher-than usual bead binding
+enrichment.
+
+     res[,1:6]
+            protein strain  ixn_score strong_hit weak_hit concordance
+        1:      LTB   AB26  0.6602471      FALSE    FALSE  0.01159683
+        2:      BTC   AB26  0.6064522      FALSE    FALSE  0.01648394
+        3:    FGF19  EpiG7  0.5368637      FALSE    FALSE  0.31062751
+        4:    PDIA6 EpiG10  0.5218827      FALSE    FALSE  0.74763547
+        5:  SLC34A3  EpiD4  0.4239569      FALSE    FALSE  0.50798559 ...
+       ---                                                           
+    15695:     CCL4  EpiB9 -0.2758499      FALSE    FALSE  0.69314718
+    15696:    MUCL3   AIEC -0.2903377      FALSE    FALSE  1.08893603
+    15697:    PDIA6    AB9 -0.3108420      FALSE    FALSE  1.05451725
+    15698:    MUCL3    AB9 -0.3143061      FALSE    FALSE  1.09323906
+    15699: DEFB130B    AB9 -0.3371342      FALSE    FALSE  1.07972289
+
+This data frame of results is also written to the output directory as
+`ixn_scores.tsv`. The output directory also contains per-protein score
+summaries, warnings, other model parameter estimates, and various other
+diagnostic outputs in files with explanatory names.
+
+The highest scoring interaction (first row in the data frame returned by
+`model_proteins_separately()` and in `ixn_scores.tsv` in the output) in
+this case is LTB:AB26 with a score of 0.66, though none of the
+interactions in the demo data subset pass the default hit-calling
+thresholds.
+
+Using `algorithm = "mcmc"` will give a more accurate approximation, but
+usually takes ~10x longer. Analyzing the full dataset
+
+- with MCMC
+- parallelized over 12 cores
+- on an Intel(R) Xeon(R) CPU E5-2680 (released Q1 2012)
+- and 2000 warmup iterations and 2500 posterior draws
+
+took about 6 days (still only a fraction of the time required to design
+and run the assay!).
+
+## Tested Software Versions
 
 This package has been tested on R 4.1.0 and the following package
-versions (though anything from ~2020 forwards *should* work):
+versions (though anything from ~2020 forwards / not ancient *should*
+work):
 
 | pkg        | ver    |
 |------------|--------|
